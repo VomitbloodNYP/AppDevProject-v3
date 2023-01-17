@@ -1,0 +1,79 @@
+<html>
+<head>
+<title>rdataset.pyi</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #629755; font-style: italic;}
+.s3 { color: #6897bb;}
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+rdataset.pyi</font>
+</center></td></tr></table>
+<pre><a name="l1"><span class="ln">1    </span></a><span class="s0">from </span><span class="s1">typing </span><span class="s0">import </span><span class="s1">Optional</span><span class="s0">, </span><span class="s1">Dict</span><span class="s0">, </span><span class="s1">List</span><span class="s0">, </span><span class="s1">Union</span>
+<a name="l2"><span class="ln">2    </span></a><span class="s0">from </span><span class="s1">io </span><span class="s0">import </span><span class="s1">BytesIO</span>
+<a name="l3"><span class="ln">3    </span></a><span class="s0">from </span><span class="s1">. </span><span class="s0">import </span><span class="s1">exception</span><span class="s0">, </span><span class="s1">name</span><span class="s0">, </span><span class="s1">set</span><span class="s0">, </span><span class="s1">rdatatype</span><span class="s0">, </span><span class="s1">rdata</span><span class="s0">, </span><span class="s1">rdataset</span>
+<a name="l4"><span class="ln">4    </span></a>
+<a name="l5"><span class="ln">5    </span></a><span class="s0">class </span><span class="s1">DifferingCovers(exception.DNSException):</span>
+<a name="l6"><span class="ln">6    </span></a>    <span class="s2">&quot;&quot;&quot;An attempt was made to add a DNS SIG/RRSIG whose covered type 
+<a name="l7"><span class="ln">7    </span></a>    is not the same as that of the other rdatas in the rdataset.&quot;&quot;&quot;</span>
+<a name="l8"><span class="ln">8    </span></a>
+<a name="l9"><span class="ln">9    </span></a>
+<a name="l10"><span class="ln">10   </span></a><span class="s0">class </span><span class="s1">IncompatibleTypes(exception.DNSException):</span>
+<a name="l11"><span class="ln">11   </span></a>    <span class="s2">&quot;&quot;&quot;An attempt was made to add DNS RR data of an incompatible type.&quot;&quot;&quot;</span>
+<a name="l12"><span class="ln">12   </span></a>
+<a name="l13"><span class="ln">13   </span></a>
+<a name="l14"><span class="ln">14   </span></a><span class="s0">class </span><span class="s1">Rdataset(set.Set):</span>
+<a name="l15"><span class="ln">15   </span></a>    <span class="s0">def </span><span class="s1">__init__(self</span><span class="s0">, </span><span class="s1">rdclass</span><span class="s0">, </span><span class="s1">rdtype</span><span class="s0">, </span><span class="s1">covers=rdatatype.NONE</span><span class="s0">, </span><span class="s1">ttl=</span><span class="s3">0</span><span class="s1">):</span>
+<a name="l16"><span class="ln">16   </span></a>        <span class="s1">self.rdclass : int = rdclass</span>
+<a name="l17"><span class="ln">17   </span></a>        <span class="s1">self.rdtype : int = rdtype</span>
+<a name="l18"><span class="ln">18   </span></a>        <span class="s1">self.covers : int = covers</span>
+<a name="l19"><span class="ln">19   </span></a>        <span class="s1">self.ttl : int = ttl</span>
+<a name="l20"><span class="ln">20   </span></a>
+<a name="l21"><span class="ln">21   </span></a>    <span class="s0">def </span><span class="s1">update_ttl(self</span><span class="s0">, </span><span class="s1">ttl : int) -&gt; </span><span class="s0">None</span><span class="s1">:</span>
+<a name="l22"><span class="ln">22   </span></a>        <span class="s1">...</span>
+<a name="l23"><span class="ln">23   </span></a>
+<a name="l24"><span class="ln">24   </span></a>    <span class="s0">def </span><span class="s1">add(self</span><span class="s0">, </span><span class="s1">rd : rdata.Rdata</span><span class="s0">, </span><span class="s1">ttl : Optional[int] =</span><span class="s0">None</span><span class="s1">):</span>
+<a name="l25"><span class="ln">25   </span></a>        <span class="s1">...</span>
+<a name="l26"><span class="ln">26   </span></a>
+<a name="l27"><span class="ln">27   </span></a>    <span class="s0">def </span><span class="s1">union_update(self</span><span class="s0">, </span><span class="s1">other : Rdataset):</span>
+<a name="l28"><span class="ln">28   </span></a>        <span class="s1">...</span>
+<a name="l29"><span class="ln">29   </span></a>
+<a name="l30"><span class="ln">30   </span></a>    <span class="s0">def </span><span class="s1">intersection_update(self</span><span class="s0">, </span><span class="s1">other : Rdataset):</span>
+<a name="l31"><span class="ln">31   </span></a>        <span class="s1">...</span>
+<a name="l32"><span class="ln">32   </span></a>
+<a name="l33"><span class="ln">33   </span></a>    <span class="s0">def </span><span class="s1">update(self</span><span class="s0">, </span><span class="s1">other : Rdataset):</span>
+<a name="l34"><span class="ln">34   </span></a>        <span class="s1">...</span>
+<a name="l35"><span class="ln">35   </span></a>
+<a name="l36"><span class="ln">36   </span></a>    <span class="s0">def </span><span class="s1">to_text(self</span><span class="s0">, </span><span class="s1">name : Optional[name.Name] =</span><span class="s0">None, </span><span class="s1">origin : Optional[name.Name] =</span><span class="s0">None, </span><span class="s1">relativize=</span><span class="s0">True,</span>
+<a name="l37"><span class="ln">37   </span></a>                <span class="s1">override_rdclass : Optional[int] =</span><span class="s0">None, </span><span class="s1">**kw) -&gt; bytes:</span>
+<a name="l38"><span class="ln">38   </span></a>        <span class="s1">...</span>
+<a name="l39"><span class="ln">39   </span></a>
+<a name="l40"><span class="ln">40   </span></a>    <span class="s0">def </span><span class="s1">to_wire(self</span><span class="s0">, </span><span class="s1">name : Optional[name.Name]</span><span class="s0">, </span><span class="s1">file : BytesIO</span><span class="s0">, </span><span class="s1">compress : Optional[Dict[name.Name</span><span class="s0">, </span><span class="s1">int]] = </span><span class="s0">None, </span><span class="s1">origin : Optional[name.Name] = </span><span class="s0">None,</span>
+<a name="l41"><span class="ln">41   </span></a>                <span class="s1">override_rdclass : Optional[int] = </span><span class="s0">None, </span><span class="s1">want_shuffle=</span><span class="s0">True</span><span class="s1">) -&gt; int:</span>
+<a name="l42"><span class="ln">42   </span></a>        <span class="s1">...</span>
+<a name="l43"><span class="ln">43   </span></a>
+<a name="l44"><span class="ln">44   </span></a>    <span class="s0">def </span><span class="s1">match(self</span><span class="s0">, </span><span class="s1">rdclass : int</span><span class="s0">, </span><span class="s1">rdtype : int</span><span class="s0">, </span><span class="s1">covers : int) -&gt; bool:</span>
+<a name="l45"><span class="ln">45   </span></a>        <span class="s1">...</span>
+<a name="l46"><span class="ln">46   </span></a>
+<a name="l47"><span class="ln">47   </span></a>
+<a name="l48"><span class="ln">48   </span></a><span class="s0">def </span><span class="s1">from_text_list(rdclass : Union[int</span><span class="s0">,</span><span class="s1">str]</span><span class="s0">, </span><span class="s1">rdtype : Union[int</span><span class="s0">,</span><span class="s1">str]</span><span class="s0">, </span><span class="s1">ttl : int</span><span class="s0">, </span><span class="s1">text_rdatas : str</span><span class="s0">, </span><span class="s1">idna_codec : Optional[name.IDNACodec] = </span><span class="s0">None</span><span class="s1">) -&gt; rdataset.Rdataset:</span>
+<a name="l49"><span class="ln">49   </span></a>    <span class="s1">...</span>
+<a name="l50"><span class="ln">50   </span></a>
+<a name="l51"><span class="ln">51   </span></a><span class="s0">def </span><span class="s1">from_text(rdclass : Union[int</span><span class="s0">,</span><span class="s1">str]</span><span class="s0">, </span><span class="s1">rdtype : Union[int</span><span class="s0">,</span><span class="s1">str]</span><span class="s0">, </span><span class="s1">ttl : int</span><span class="s0">, </span><span class="s1">*text_rdatas : str) -&gt; rdataset.Rdataset:</span>
+<a name="l52"><span class="ln">52   </span></a>    <span class="s1">...</span>
+<a name="l53"><span class="ln">53   </span></a>
+<a name="l54"><span class="ln">54   </span></a><span class="s0">def </span><span class="s1">from_rdata_list(ttl : int</span><span class="s0">, </span><span class="s1">rdatas : List[rdata.Rdata]) -&gt; rdataset.Rdataset:</span>
+<a name="l55"><span class="ln">55   </span></a>    <span class="s1">...</span>
+<a name="l56"><span class="ln">56   </span></a>
+<a name="l57"><span class="ln">57   </span></a><span class="s0">def </span><span class="s1">from_rdata(ttl : int</span><span class="s0">, </span><span class="s1">*rdatas : List[rdata.Rdata]) -&gt; rdataset.Rdataset:</span>
+<a name="l58"><span class="ln">58   </span></a>    <span class="s1">...</span>
+<a name="l59"><span class="ln">59   </span></a></pre>
+</body>
+</html>

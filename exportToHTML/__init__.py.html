@@ -1,0 +1,763 @@
+<html>
+<head>
+<title>__init__.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #808080;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #cc7832;}
+.s3 { color: #6897bb;}
+.s4 { color: #6a8759;}
+.s5 { color: #629755; font-style: italic;}
+.s6 { color: #a5c261;}
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+__init__.py</font>
+</center></td></tr></table>
+<pre><a name="l1"><span class="ln">1    </span></a><span class="s0"># -*- coding: utf-8 -*-</span>
+<a name="l2"><span class="ln">2    </span></a>
+<a name="l3"><span class="ln">3    </span></a><span class="s2">import </span><span class="s1">sys</span>
+<a name="l4"><span class="ln">4    </span></a><span class="s2">import </span><span class="s1">re</span>
+<a name="l5"><span class="ln">5    </span></a><span class="s2">import </span><span class="s1">unicodedata</span>
+<a name="l6"><span class="ln">6    </span></a><span class="s2">import </span><span class="s1">dns.resolver</span>
+<a name="l7"><span class="ln">7    </span></a><span class="s2">import </span><span class="s1">dns.exception</span>
+<a name="l8"><span class="ln">8    </span></a><span class="s2">import </span><span class="s1">idna  </span><span class="s0"># implements IDNA 2008; Python's codec is only IDNA 2003</span>
+<a name="l9"><span class="ln">9    </span></a>
+<a name="l10"><span class="ln">10   </span></a><span class="s0"># Default values for keyword arguments.</span>
+<a name="l11"><span class="ln">11   </span></a>
+<a name="l12"><span class="ln">12   </span></a><span class="s1">ALLOW_SMTPUTF8 = </span><span class="s2">True</span>
+<a name="l13"><span class="ln">13   </span></a><span class="s1">CHECK_DELIVERABILITY = </span><span class="s2">True</span>
+<a name="l14"><span class="ln">14   </span></a><span class="s1">TEST_ENVIRONMENT = </span><span class="s2">False</span>
+<a name="l15"><span class="ln">15   </span></a><span class="s1">GLOBALLY_DELIVERABLE = </span><span class="s2">True</span>
+<a name="l16"><span class="ln">16   </span></a><span class="s1">DEFAULT_TIMEOUT = </span><span class="s3">15  </span><span class="s0"># secs</span>
+<a name="l17"><span class="ln">17   </span></a>
+<a name="l18"><span class="ln">18   </span></a><span class="s0"># Based on RFC 2822 section 3.2.4 / RFC 5322 section 3.2.3, these</span>
+<a name="l19"><span class="ln">19   </span></a><span class="s0"># characters are permitted in email addresses (not taking into</span>
+<a name="l20"><span class="ln">20   </span></a><span class="s0"># account internationalization):</span>
+<a name="l21"><span class="ln">21   </span></a><span class="s1">ATEXT = </span><span class="s4">r'a-zA-Z0-9_!#\$%&amp;\'\*\+\-/=\?\^`\{\|\}~'</span>
+<a name="l22"><span class="ln">22   </span></a>
+<a name="l23"><span class="ln">23   </span></a><span class="s0"># A &quot;dot atom text&quot;, per RFC 2822 3.2.4:</span>
+<a name="l24"><span class="ln">24   </span></a><span class="s1">DOT_ATOM_TEXT = </span><span class="s4">'[' </span><span class="s1">+ ATEXT + </span><span class="s4">']+(?:</span><span class="s2">\\</span><span class="s4">.[' </span><span class="s1">+ ATEXT + </span><span class="s4">']+)*'</span>
+<a name="l25"><span class="ln">25   </span></a>
+<a name="l26"><span class="ln">26   </span></a><span class="s0"># RFC 6531 section 3.3 extends the allowed characters in internationalized</span>
+<a name="l27"><span class="ln">27   </span></a><span class="s0"># addresses to also include three specific ranges of UTF8 defined in</span>
+<a name="l28"><span class="ln">28   </span></a><span class="s0"># RFC3629 section 4, which appear to be the Unicode code points from</span>
+<a name="l29"><span class="ln">29   </span></a><span class="s0"># U+0080 to U+10FFFF.</span>
+<a name="l30"><span class="ln">30   </span></a><span class="s1">ATEXT_INTL = ATEXT + </span><span class="s4">u&quot;</span><span class="s2">\u0080</span><span class="s4">-</span><span class="s2">\U0010FFFF</span><span class="s4">&quot;</span>
+<a name="l31"><span class="ln">31   </span></a><span class="s1">DOT_ATOM_TEXT_INTL = </span><span class="s4">'[' </span><span class="s1">+ ATEXT_INTL + </span><span class="s4">']+(?:</span><span class="s2">\\</span><span class="s4">.[' </span><span class="s1">+ ATEXT_INTL + </span><span class="s4">']+)*'</span>
+<a name="l32"><span class="ln">32   </span></a>
+<a name="l33"><span class="ln">33   </span></a><span class="s0"># The domain part of the email address, after IDNA (ASCII) encoding,</span>
+<a name="l34"><span class="ln">34   </span></a><span class="s0"># must also satisfy the requirements of RFC 952/RFC 1123 which restrict</span>
+<a name="l35"><span class="ln">35   </span></a><span class="s0"># the allowed characters of hostnames further. The hyphen cannot be at</span>
+<a name="l36"><span class="ln">36   </span></a><span class="s0"># the beginning or end of a *dot-atom component* of a hostname either.</span>
+<a name="l37"><span class="ln">37   </span></a><span class="s1">ATEXT_HOSTNAME = </span><span class="s4">r'(?:(?:[a-zA-Z0-9][a-zA-Z0-9\-]*)?[a-zA-Z0-9])'</span>
+<a name="l38"><span class="ln">38   </span></a>
+<a name="l39"><span class="ln">39   </span></a><span class="s0"># Length constants</span>
+<a name="l40"><span class="ln">40   </span></a><span class="s0"># RFC 3696 + errata 1003 + errata 1690 (https://www.rfc-editor.org/errata_search.php?rfc=3696&amp;eid=1690)</span>
+<a name="l41"><span class="ln">41   </span></a><span class="s0"># explains the maximum length of an email address is 254 octets.</span>
+<a name="l42"><span class="ln">42   </span></a><span class="s1">EMAIL_MAX_LENGTH = </span><span class="s3">254</span>
+<a name="l43"><span class="ln">43   </span></a><span class="s1">LOCAL_PART_MAX_LENGTH = </span><span class="s3">64</span>
+<a name="l44"><span class="ln">44   </span></a><span class="s1">DOMAIN_MAX_LENGTH = </span><span class="s3">255</span>
+<a name="l45"><span class="ln">45   </span></a>
+<a name="l46"><span class="ln">46   </span></a><span class="s0"># IANA Special Use Domain Names</span>
+<a name="l47"><span class="ln">47   </span></a><span class="s0"># Last Updated 2021-09-21</span>
+<a name="l48"><span class="ln">48   </span></a><span class="s0"># https://www.iana.org/assignments/special-use-domain-names/special-use-domain-names.txt</span>
+<a name="l49"><span class="ln">49   </span></a><span class="s0">#</span>
+<a name="l50"><span class="ln">50   </span></a><span class="s0"># The domain names without dots would be caught by the check that the domain</span>
+<a name="l51"><span class="ln">51   </span></a><span class="s0"># name in an email address must have a period, but this list will also catch</span>
+<a name="l52"><span class="ln">52   </span></a><span class="s0"># subdomains of these domains, which are also reserved.</span>
+<a name="l53"><span class="ln">53   </span></a><span class="s1">SPECIAL_USE_DOMAIN_NAMES = [</span>
+<a name="l54"><span class="ln">54   </span></a>    <span class="s0"># The &quot;arpa&quot; entry here is consolidated from a lot of arpa subdomains</span>
+<a name="l55"><span class="ln">55   </span></a>    <span class="s0"># for private address (i.e. non-routable IP addresses like 172.16.x.x)</span>
+<a name="l56"><span class="ln">56   </span></a>    <span class="s0"># reverse mapping, plus some other subdomains. Although RFC 6761 says</span>
+<a name="l57"><span class="ln">57   </span></a>    <span class="s0"># that application software should not treat these domains as special,</span>
+<a name="l58"><span class="ln">58   </span></a>    <span class="s0"># they are private-use domains and so cannot have globally deliverable</span>
+<a name="l59"><span class="ln">59   </span></a>    <span class="s0"># email addresses, which is an assumption of this library, and probably</span>
+<a name="l60"><span class="ln">60   </span></a>    <span class="s0"># all of arpa is similarly special-use, so we reject it all.</span>
+<a name="l61"><span class="ln">61   </span></a>    <span class="s4">&quot;arpa&quot;</span><span class="s2">,</span>
+<a name="l62"><span class="ln">62   </span></a>
+<a name="l63"><span class="ln">63   </span></a>    <span class="s0"># RFC 6761 says applications &quot;SHOULD NOT&quot; treat the &quot;example&quot; domains</span>
+<a name="l64"><span class="ln">64   </span></a>    <span class="s0"># as special, i.e. applications should accept these domains.</span>
+<a name="l65"><span class="ln">65   </span></a>    <span class="s0">#</span>
+<a name="l66"><span class="ln">66   </span></a>    <span class="s0"># The domain &quot;example&quot; alone fails our syntax validation because it</span>
+<a name="l67"><span class="ln">67   </span></a>    <span class="s0"># lacks a dot (we assume no one has an email address on a TLD directly).</span>
+<a name="l68"><span class="ln">68   </span></a>    <span class="s0"># &quot;@example.com/net/org&quot; will currently fail DNS-based deliverability</span>
+<a name="l69"><span class="ln">69   </span></a>    <span class="s0"># checks because IANA publishes a NULL MX for these domains, and</span>
+<a name="l70"><span class="ln">70   </span></a>    <span class="s0"># &quot;@mail.example[.com/net/org]&quot; and other subdomains will fail DNS-</span>
+<a name="l71"><span class="ln">71   </span></a>    <span class="s0"># based deliverability checks because IANA does not publish MX or A</span>
+<a name="l72"><span class="ln">72   </span></a>    <span class="s0"># DNS records for these subdomains.</span>
+<a name="l73"><span class="ln">73   </span></a>    <span class="s0"># &quot;example&quot;, # i.e. &quot;wwww.example&quot;</span>
+<a name="l74"><span class="ln">74   </span></a>    <span class="s0"># &quot;example.com&quot;,</span>
+<a name="l75"><span class="ln">75   </span></a>    <span class="s0"># &quot;example.net&quot;,</span>
+<a name="l76"><span class="ln">76   </span></a>    <span class="s0"># &quot;example.org&quot;,</span>
+<a name="l77"><span class="ln">77   </span></a>
+<a name="l78"><span class="ln">78   </span></a>    <span class="s0"># RFC 6761 says that applications are permitted to treat this domain</span>
+<a name="l79"><span class="ln">79   </span></a>    <span class="s0"># as special and that DNS should return an immediate negative response,</span>
+<a name="l80"><span class="ln">80   </span></a>    <span class="s0"># so we also immediately reject this domain, which also follows the</span>
+<a name="l81"><span class="ln">81   </span></a>    <span class="s0"># purpose of the domain.</span>
+<a name="l82"><span class="ln">82   </span></a>    <span class="s4">&quot;invalid&quot;</span><span class="s2">,</span>
+<a name="l83"><span class="ln">83   </span></a>
+<a name="l84"><span class="ln">84   </span></a>    <span class="s0"># RFC 6762 says that applications &quot;may&quot; treat &quot;.local&quot; as special and</span>
+<a name="l85"><span class="ln">85   </span></a>    <span class="s0"># that &quot;name resolution APIs and libraries SHOULD recognize these names</span>
+<a name="l86"><span class="ln">86   </span></a>    <span class="s0"># as special,&quot; and since &quot;.local&quot; has no global definition, we reject</span>
+<a name="l87"><span class="ln">87   </span></a>    <span class="s0"># it, as we expect email addresses to be gloally routable.</span>
+<a name="l88"><span class="ln">88   </span></a>    <span class="s4">&quot;local&quot;</span><span class="s2">,</span>
+<a name="l89"><span class="ln">89   </span></a>
+<a name="l90"><span class="ln">90   </span></a>    <span class="s0"># RFC 6761 says that applications (like this library) are permitted</span>
+<a name="l91"><span class="ln">91   </span></a>    <span class="s0"># to treat &quot;localhost&quot; as special, and since it cannot have a globally</span>
+<a name="l92"><span class="ln">92   </span></a>    <span class="s0"># deliverable email address, we reject it.</span>
+<a name="l93"><span class="ln">93   </span></a>    <span class="s4">&quot;localhost&quot;</span><span class="s2">,</span>
+<a name="l94"><span class="ln">94   </span></a>
+<a name="l95"><span class="ln">95   </span></a>    <span class="s0"># RFC 7686 says &quot;applications that do not implement the Tor protocol</span>
+<a name="l96"><span class="ln">96   </span></a>    <span class="s0"># SHOULD generate an error upon the use of .onion and SHOULD NOT</span>
+<a name="l97"><span class="ln">97   </span></a>    <span class="s0"># perform a DNS lookup.</span>
+<a name="l98"><span class="ln">98   </span></a>    <span class="s4">&quot;onion&quot;</span><span class="s2">,</span>
+<a name="l99"><span class="ln">99   </span></a>
+<a name="l100"><span class="ln">100  </span></a>    <span class="s0"># Although RFC 6761 says that application software should not treat</span>
+<a name="l101"><span class="ln">101  </span></a>    <span class="s0"># these domains as special, it also warns users that the address may</span>
+<a name="l102"><span class="ln">102  </span></a>    <span class="s0"># resolve differently in different systems, and therefore it cannot</span>
+<a name="l103"><span class="ln">103  </span></a>    <span class="s0"># have a globally routable email address, which is an assumption of</span>
+<a name="l104"><span class="ln">104  </span></a>    <span class="s0"># this library, so we reject &quot;@test&quot; and &quot;@*.test&quot; addresses, unless</span>
+<a name="l105"><span class="ln">105  </span></a>    <span class="s0"># the test_environment keyword argument is given, to allow their use</span>
+<a name="l106"><span class="ln">106  </span></a>    <span class="s0"># in application-level test environments. These domains will generally</span>
+<a name="l107"><span class="ln">107  </span></a>    <span class="s0"># fail deliverability checks because &quot;test&quot; is not an actual TLD.</span>
+<a name="l108"><span class="ln">108  </span></a>    <span class="s4">&quot;test&quot;</span><span class="s2">,</span>
+<a name="l109"><span class="ln">109  </span></a><span class="s1">]</span>
+<a name="l110"><span class="ln">110  </span></a>
+<a name="l111"><span class="ln">111  </span></a><span class="s0"># ease compatibility in type checking</span>
+<a name="l112"><span class="ln">112  </span></a><span class="s2">if </span><span class="s1">sys.version_info &gt;= (</span><span class="s3">3</span><span class="s2">,</span><span class="s1">):</span>
+<a name="l113"><span class="ln">113  </span></a>    <span class="s1">unicode_class = str</span>
+<a name="l114"><span class="ln">114  </span></a><span class="s2">else</span><span class="s1">:</span>
+<a name="l115"><span class="ln">115  </span></a>    <span class="s1">unicode_class = unicode  </span><span class="s0"># noqa: F821</span>
+<a name="l116"><span class="ln">116  </span></a>
+<a name="l117"><span class="ln">117  </span></a>    <span class="s0"># turn regexes to unicode (because 'ur' literals are not allowed in Py3)</span>
+<a name="l118"><span class="ln">118  </span></a>    <span class="s1">ATEXT = ATEXT.decode(</span><span class="s4">&quot;ascii&quot;</span><span class="s1">)</span>
+<a name="l119"><span class="ln">119  </span></a>    <span class="s1">DOT_ATOM_TEXT = DOT_ATOM_TEXT.decode(</span><span class="s4">&quot;ascii&quot;</span><span class="s1">)</span>
+<a name="l120"><span class="ln">120  </span></a>    <span class="s1">ATEXT_HOSTNAME = ATEXT_HOSTNAME.decode(</span><span class="s4">&quot;ascii&quot;</span><span class="s1">)</span>
+<a name="l121"><span class="ln">121  </span></a>
+<a name="l122"><span class="ln">122  </span></a>
+<a name="l123"><span class="ln">123  </span></a><span class="s2">class </span><span class="s1">EmailNotValidError(ValueError):</span>
+<a name="l124"><span class="ln">124  </span></a>    <span class="s5">&quot;&quot;&quot;Parent class of all exceptions raised by this module.&quot;&quot;&quot;</span>
+<a name="l125"><span class="ln">125  </span></a>    <span class="s2">pass</span>
+<a name="l126"><span class="ln">126  </span></a>
+<a name="l127"><span class="ln">127  </span></a>
+<a name="l128"><span class="ln">128  </span></a><span class="s2">class </span><span class="s1">EmailSyntaxError(EmailNotValidError):</span>
+<a name="l129"><span class="ln">129  </span></a>    <span class="s5">&quot;&quot;&quot;Exception raised when an email address fails validation because of its form.&quot;&quot;&quot;</span>
+<a name="l130"><span class="ln">130  </span></a>    <span class="s2">pass</span>
+<a name="l131"><span class="ln">131  </span></a>
+<a name="l132"><span class="ln">132  </span></a>
+<a name="l133"><span class="ln">133  </span></a><span class="s2">class </span><span class="s1">EmailUndeliverableError(EmailNotValidError):</span>
+<a name="l134"><span class="ln">134  </span></a>    <span class="s5">&quot;&quot;&quot;Exception raised when an email address fails validation because its domain name does not appear deliverable.&quot;&quot;&quot;</span>
+<a name="l135"><span class="ln">135  </span></a>    <span class="s2">pass</span>
+<a name="l136"><span class="ln">136  </span></a>
+<a name="l137"><span class="ln">137  </span></a>
+<a name="l138"><span class="ln">138  </span></a><span class="s2">class </span><span class="s1">ValidatedEmail(object):</span>
+<a name="l139"><span class="ln">139  </span></a>    <span class="s5">&quot;&quot;&quot;The validate_email function returns objects of this type holding the normalized form of the email address 
+<a name="l140"><span class="ln">140  </span></a>    and other information.&quot;&quot;&quot;</span>
+<a name="l141"><span class="ln">141  </span></a>
+<a name="l142"><span class="ln">142  </span></a>    <span class="s4">&quot;&quot;&quot;The email address that was passed to validate_email. (If passed as bytes, this will be a string.)&quot;&quot;&quot;</span>
+<a name="l143"><span class="ln">143  </span></a>    <span class="s1">original_email = </span><span class="s2">None</span>
+<a name="l144"><span class="ln">144  </span></a>
+<a name="l145"><span class="ln">145  </span></a>    <span class="s4">&quot;&quot;&quot;The normalized email address, which should always be used in preferance to the original address. 
+<a name="l146"><span class="ln">146  </span></a>    The normalized address converts an IDNA ASCII domain name to Unicode, if possible, and performs 
+<a name="l147"><span class="ln">147  </span></a>    Unicode normalization on the local part and on the domain (if originally Unicode). It is the 
+<a name="l148"><span class="ln">148  </span></a>    concatenation of the local_part and domain attributes, separated by an @-sign.&quot;&quot;&quot;</span>
+<a name="l149"><span class="ln">149  </span></a>    <span class="s1">email = </span><span class="s2">None</span>
+<a name="l150"><span class="ln">150  </span></a>
+<a name="l151"><span class="ln">151  </span></a>    <span class="s4">&quot;&quot;&quot;The local part of the email address after Unicode normalization.&quot;&quot;&quot;</span>
+<a name="l152"><span class="ln">152  </span></a>    <span class="s1">local_part = </span><span class="s2">None</span>
+<a name="l153"><span class="ln">153  </span></a>
+<a name="l154"><span class="ln">154  </span></a>    <span class="s4">&quot;&quot;&quot;The domain part of the email address after Unicode normalization or conversion to 
+<a name="l155"><span class="ln">155  </span></a>    Unicode from IDNA ascii.&quot;&quot;&quot;</span>
+<a name="l156"><span class="ln">156  </span></a>    <span class="s1">domain = </span><span class="s2">None</span>
+<a name="l157"><span class="ln">157  </span></a>
+<a name="l158"><span class="ln">158  </span></a>    <span class="s4">&quot;&quot;&quot;If not None, a form of the email address that uses 7-bit ASCII characters only.&quot;&quot;&quot;</span>
+<a name="l159"><span class="ln">159  </span></a>    <span class="s1">ascii_email = </span><span class="s2">None</span>
+<a name="l160"><span class="ln">160  </span></a>
+<a name="l161"><span class="ln">161  </span></a>    <span class="s4">&quot;&quot;&quot;If not None, the local part of the email address using 7-bit ASCII characters only.&quot;&quot;&quot;</span>
+<a name="l162"><span class="ln">162  </span></a>    <span class="s1">ascii_local_part = </span><span class="s2">None</span>
+<a name="l163"><span class="ln">163  </span></a>
+<a name="l164"><span class="ln">164  </span></a>    <span class="s4">&quot;&quot;&quot;If not None, a form of the domain name that uses 7-bit ASCII characters only.&quot;&quot;&quot;</span>
+<a name="l165"><span class="ln">165  </span></a>    <span class="s1">ascii_domain = </span><span class="s2">None</span>
+<a name="l166"><span class="ln">166  </span></a>
+<a name="l167"><span class="ln">167  </span></a>    <span class="s4">&quot;&quot;&quot;If True, the SMTPUTF8 feature of your mail relay will be required to transmit messages 
+<a name="l168"><span class="ln">168  </span></a>    to this address. This flag is True just when ascii_local_part is missing. Otherwise it 
+<a name="l169"><span class="ln">169  </span></a>    is False.&quot;&quot;&quot;</span>
+<a name="l170"><span class="ln">170  </span></a>    <span class="s1">smtputf8 = </span><span class="s2">None</span>
+<a name="l171"><span class="ln">171  </span></a>
+<a name="l172"><span class="ln">172  </span></a>    <span class="s4">&quot;&quot;&quot;If a deliverability check is performed and if it succeeds, a list of (priority, domain) 
+<a name="l173"><span class="ln">173  </span></a>    tuples of MX records specified in the DNS for the domain.&quot;&quot;&quot;</span>
+<a name="l174"><span class="ln">174  </span></a>    <span class="s1">mx = </span><span class="s2">None</span>
+<a name="l175"><span class="ln">175  </span></a>
+<a name="l176"><span class="ln">176  </span></a>    <span class="s4">&quot;&quot;&quot;If no MX records are actually specified in DNS and instead are inferred, through an obsolete 
+<a name="l177"><span class="ln">177  </span></a>    mechanism, from A or AAAA records, the value is the type of DNS record used instead (`A` or `AAAA`).&quot;&quot;&quot;</span>
+<a name="l178"><span class="ln">178  </span></a>    <span class="s1">mx_fallback_type = </span><span class="s2">None</span>
+<a name="l179"><span class="ln">179  </span></a>
+<a name="l180"><span class="ln">180  </span></a>    <span class="s4">&quot;&quot;&quot;Tests use this constructor.&quot;&quot;&quot;</span>
+<a name="l181"><span class="ln">181  </span></a>    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">**kwargs):</span>
+<a name="l182"><span class="ln">182  </span></a>        <span class="s2">for </span><span class="s1">k</span><span class="s2">, </span><span class="s1">v </span><span class="s2">in </span><span class="s1">kwargs.items():</span>
+<a name="l183"><span class="ln">183  </span></a>            <span class="s1">setattr(self</span><span class="s2">, </span><span class="s1">k</span><span class="s2">, </span><span class="s1">v)</span>
+<a name="l184"><span class="ln">184  </span></a>
+<a name="l185"><span class="ln">185  </span></a>    <span class="s4">&quot;&quot;&quot;As a convenience, str(...) on instances of this class return the normalized address.&quot;&quot;&quot;</span>
+<a name="l186"><span class="ln">186  </span></a>    <span class="s2">def </span><span class="s1">__self__(self):</span>
+<a name="l187"><span class="ln">187  </span></a>        <span class="s2">return </span><span class="s1">self.normalized_email</span>
+<a name="l188"><span class="ln">188  </span></a>
+<a name="l189"><span class="ln">189  </span></a>    <span class="s2">def </span><span class="s1">__repr__(self):</span>
+<a name="l190"><span class="ln">190  </span></a>        <span class="s2">return </span><span class="s4">&quot;&lt;ValidatedEmail {}&gt;&quot;</span><span class="s1">.format(self.email)</span>
+<a name="l191"><span class="ln">191  </span></a>
+<a name="l192"><span class="ln">192  </span></a>    <span class="s4">&quot;&quot;&quot;For backwards compatibility, some fields are also exposed through a dict-like interface. Note 
+<a name="l193"><span class="ln">193  </span></a>    that some of the names changed when they became attributes.&quot;&quot;&quot;</span>
+<a name="l194"><span class="ln">194  </span></a>    <span class="s2">def </span><span class="s1">__getitem__(self</span><span class="s2">, </span><span class="s1">key):</span>
+<a name="l195"><span class="ln">195  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;email&quot;</span><span class="s1">:</span>
+<a name="l196"><span class="ln">196  </span></a>            <span class="s2">return </span><span class="s1">self.email</span>
+<a name="l197"><span class="ln">197  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;email_ascii&quot;</span><span class="s1">:</span>
+<a name="l198"><span class="ln">198  </span></a>            <span class="s2">return </span><span class="s1">self.ascii_email</span>
+<a name="l199"><span class="ln">199  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;local&quot;</span><span class="s1">:</span>
+<a name="l200"><span class="ln">200  </span></a>            <span class="s2">return </span><span class="s1">self.local_part</span>
+<a name="l201"><span class="ln">201  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;domain&quot;</span><span class="s1">:</span>
+<a name="l202"><span class="ln">202  </span></a>            <span class="s2">return </span><span class="s1">self.ascii_domain</span>
+<a name="l203"><span class="ln">203  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;domain_i18n&quot;</span><span class="s1">:</span>
+<a name="l204"><span class="ln">204  </span></a>            <span class="s2">return </span><span class="s1">self.domain</span>
+<a name="l205"><span class="ln">205  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;smtputf8&quot;</span><span class="s1">:</span>
+<a name="l206"><span class="ln">206  </span></a>            <span class="s2">return </span><span class="s1">self.smtputf8</span>
+<a name="l207"><span class="ln">207  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;mx&quot;</span><span class="s1">:</span>
+<a name="l208"><span class="ln">208  </span></a>            <span class="s2">return </span><span class="s1">self.mx</span>
+<a name="l209"><span class="ln">209  </span></a>        <span class="s2">if </span><span class="s1">key == </span><span class="s4">&quot;mx-fallback&quot;</span><span class="s1">:</span>
+<a name="l210"><span class="ln">210  </span></a>            <span class="s2">return </span><span class="s1">self.mx_fallback_type</span>
+<a name="l211"><span class="ln">211  </span></a>        <span class="s2">raise </span><span class="s1">KeyError()</span>
+<a name="l212"><span class="ln">212  </span></a>
+<a name="l213"><span class="ln">213  </span></a>    <span class="s4">&quot;&quot;&quot;Tests use this.&quot;&quot;&quot;</span>
+<a name="l214"><span class="ln">214  </span></a>    <span class="s2">def </span><span class="s1">__eq__(self</span><span class="s2">, </span><span class="s1">other):</span>
+<a name="l215"><span class="ln">215  </span></a>        <span class="s2">if not </span><span class="s1">isinstance(other</span><span class="s2">, </span><span class="s1">ValidatedEmail):</span>
+<a name="l216"><span class="ln">216  </span></a>            <span class="s2">return False</span>
+<a name="l217"><span class="ln">217  </span></a>        <span class="s2">return </span><span class="s1">(</span>
+<a name="l218"><span class="ln">218  </span></a>            <span class="s1">self.email == other.email</span>
+<a name="l219"><span class="ln">219  </span></a>            <span class="s2">and </span><span class="s1">self.local_part == other.local_part</span>
+<a name="l220"><span class="ln">220  </span></a>            <span class="s2">and </span><span class="s1">self.domain == other.domain</span>
+<a name="l221"><span class="ln">221  </span></a>            <span class="s2">and </span><span class="s1">self.ascii_email == other.ascii_email</span>
+<a name="l222"><span class="ln">222  </span></a>            <span class="s2">and </span><span class="s1">self.ascii_local_part == other.ascii_local_part</span>
+<a name="l223"><span class="ln">223  </span></a>            <span class="s2">and </span><span class="s1">self.ascii_domain == other.ascii_domain</span>
+<a name="l224"><span class="ln">224  </span></a>            <span class="s2">and </span><span class="s1">self.smtputf8 == other.smtputf8</span>
+<a name="l225"><span class="ln">225  </span></a>            <span class="s2">and </span><span class="s1">repr(sorted(self.mx) </span><span class="s2">if </span><span class="s1">self.mx </span><span class="s2">else </span><span class="s1">self.mx)</span>
+<a name="l226"><span class="ln">226  </span></a>            <span class="s1">== repr(sorted(other.mx) </span><span class="s2">if </span><span class="s1">other.mx </span><span class="s2">else </span><span class="s1">other.mx)</span>
+<a name="l227"><span class="ln">227  </span></a>            <span class="s2">and </span><span class="s1">self.mx_fallback_type == other.mx_fallback_type</span>
+<a name="l228"><span class="ln">228  </span></a>        <span class="s1">)</span>
+<a name="l229"><span class="ln">229  </span></a>
+<a name="l230"><span class="ln">230  </span></a>    <span class="s4">&quot;&quot;&quot;This helps producing the README.&quot;&quot;&quot;</span>
+<a name="l231"><span class="ln">231  </span></a>    <span class="s2">def </span><span class="s1">as_constructor(self):</span>
+<a name="l232"><span class="ln">232  </span></a>        <span class="s2">return </span><span class="s4">&quot;ValidatedEmail(&quot; </span><span class="s1">\</span>
+<a name="l233"><span class="ln">233  </span></a>            <span class="s1">+ </span><span class="s4">&quot;,&quot;</span><span class="s1">.join(</span><span class="s4">&quot;</span><span class="s2">\n  </span><span class="s4">{}={}&quot;</span><span class="s1">.format(</span>
+<a name="l234"><span class="ln">234  </span></a>                       <span class="s1">key</span><span class="s2">,</span>
+<a name="l235"><span class="ln">235  </span></a>                       <span class="s1">repr(getattr(self</span><span class="s2">, </span><span class="s1">key)))</span>
+<a name="l236"><span class="ln">236  </span></a>                       <span class="s2">for </span><span class="s1">key </span><span class="s2">in </span><span class="s1">(</span><span class="s4">'email'</span><span class="s2">, </span><span class="s4">'local_part'</span><span class="s2">, </span><span class="s4">'domain'</span><span class="s2">,</span>
+<a name="l237"><span class="ln">237  </span></a>                                   <span class="s4">'ascii_email'</span><span class="s2">, </span><span class="s4">'ascii_local_part'</span><span class="s2">, </span><span class="s4">'ascii_domain'</span><span class="s2">,</span>
+<a name="l238"><span class="ln">238  </span></a>                                   <span class="s4">'smtputf8'</span><span class="s2">, </span><span class="s4">'mx'</span><span class="s2">, </span><span class="s4">'mx_fallback_type'</span><span class="s1">)</span>
+<a name="l239"><span class="ln">239  </span></a>                       <span class="s1">) \</span>
+<a name="l240"><span class="ln">240  </span></a>            <span class="s1">+ </span><span class="s4">&quot;)&quot;</span>
+<a name="l241"><span class="ln">241  </span></a>
+<a name="l242"><span class="ln">242  </span></a>    <span class="s4">&quot;&quot;&quot;Convenience method for accessing ValidatedEmail as a dict&quot;&quot;&quot;</span>
+<a name="l243"><span class="ln">243  </span></a>    <span class="s2">def </span><span class="s1">as_dict(self):</span>
+<a name="l244"><span class="ln">244  </span></a>        <span class="s2">return </span><span class="s1">self.__dict__</span>
+<a name="l245"><span class="ln">245  </span></a>
+<a name="l246"><span class="ln">246  </span></a>
+<a name="l247"><span class="ln">247  </span></a><span class="s2">def </span><span class="s1">__get_length_reason(addr</span><span class="s2">, </span><span class="s1">utf8=</span><span class="s2">False, </span><span class="s1">limit=EMAIL_MAX_LENGTH):</span>
+<a name="l248"><span class="ln">248  </span></a>    <span class="s1">diff = len(addr) - limit</span>
+<a name="l249"><span class="ln">249  </span></a>    <span class="s1">reason = </span><span class="s4">&quot;({}{} character{} too many)&quot;</span>
+<a name="l250"><span class="ln">250  </span></a>    <span class="s1">prefix = </span><span class="s4">&quot;at least &quot; </span><span class="s2">if </span><span class="s1">utf8 </span><span class="s2">else </span><span class="s4">&quot;&quot;</span>
+<a name="l251"><span class="ln">251  </span></a>    <span class="s1">suffix = </span><span class="s4">&quot;s&quot; </span><span class="s2">if </span><span class="s1">diff &gt; </span><span class="s3">1 </span><span class="s2">else </span><span class="s4">&quot;&quot;</span>
+<a name="l252"><span class="ln">252  </span></a>    <span class="s2">return </span><span class="s1">reason.format(prefix</span><span class="s2">, </span><span class="s1">diff</span><span class="s2">, </span><span class="s1">suffix)</span>
+<a name="l253"><span class="ln">253  </span></a>
+<a name="l254"><span class="ln">254  </span></a>
+<a name="l255"><span class="ln">255  </span></a><span class="s2">def </span><span class="s1">caching_resolver(*</span><span class="s2">, </span><span class="s1">timeout=</span><span class="s2">None, </span><span class="s1">cache=</span><span class="s2">None</span><span class="s1">):</span>
+<a name="l256"><span class="ln">256  </span></a>    <span class="s2">if </span><span class="s1">timeout </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l257"><span class="ln">257  </span></a>        <span class="s1">timeout = DEFAULT_TIMEOUT</span>
+<a name="l258"><span class="ln">258  </span></a>    <span class="s1">resolver = dns.resolver.Resolver()</span>
+<a name="l259"><span class="ln">259  </span></a>    <span class="s1">resolver.cache = cache </span><span class="s2">or </span><span class="s1">dns.resolver.LRUCache()</span>
+<a name="l260"><span class="ln">260  </span></a>    <span class="s1">resolver.lifetime = timeout  </span><span class="s0"># timeout, in seconds</span>
+<a name="l261"><span class="ln">261  </span></a>    <span class="s2">return </span><span class="s1">resolver</span>
+<a name="l262"><span class="ln">262  </span></a>
+<a name="l263"><span class="ln">263  </span></a>
+<a name="l264"><span class="ln">264  </span></a><span class="s2">def </span><span class="s1">validate_email(</span>
+<a name="l265"><span class="ln">265  </span></a>    <span class="s1">email</span><span class="s2">,</span>
+<a name="l266"><span class="ln">266  </span></a>    <span class="s0"># /, # not supported in Python 3.6, 3.7</span>
+<a name="l267"><span class="ln">267  </span></a>    <span class="s1">*</span><span class="s2">,</span>
+<a name="l268"><span class="ln">268  </span></a>    <span class="s1">allow_smtputf8=</span><span class="s2">None,</span>
+<a name="l269"><span class="ln">269  </span></a>    <span class="s1">allow_empty_local=</span><span class="s2">False,</span>
+<a name="l270"><span class="ln">270  </span></a>    <span class="s1">check_deliverability=</span><span class="s2">None,</span>
+<a name="l271"><span class="ln">271  </span></a>    <span class="s1">test_environment=</span><span class="s2">None,</span>
+<a name="l272"><span class="ln">272  </span></a>    <span class="s1">globally_deliverable=GLOBALLY_DELIVERABLE</span><span class="s2">,</span>
+<a name="l273"><span class="ln">273  </span></a>    <span class="s1">timeout=</span><span class="s2">None,</span>
+<a name="l274"><span class="ln">274  </span></a>    <span class="s1">dns_resolver=</span><span class="s2">None</span>
+<a name="l275"><span class="ln">275  </span></a><span class="s1">):</span>
+<a name="l276"><span class="ln">276  </span></a>    <span class="s5">&quot;&quot;&quot; 
+<a name="l277"><span class="ln">277  </span></a>    Validates an email address, raising an EmailNotValidError if the address is not valid or returning a dict of 
+<a name="l278"><span class="ln">278  </span></a>    information when the address is valid. The email argument can be a str or a bytes instance, 
+<a name="l279"><span class="ln">279  </span></a>    but if bytes it must be ASCII-only. 
+<a name="l280"><span class="ln">280  </span></a>    &quot;&quot;&quot;</span>
+<a name="l281"><span class="ln">281  </span></a>
+<a name="l282"><span class="ln">282  </span></a>    <span class="s0"># Fill in default values of arguments.</span>
+<a name="l283"><span class="ln">283  </span></a>    <span class="s2">if </span><span class="s1">allow_smtputf8 </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l284"><span class="ln">284  </span></a>        <span class="s1">allow_smtputf8 = ALLOW_SMTPUTF8</span>
+<a name="l285"><span class="ln">285  </span></a>    <span class="s2">if </span><span class="s1">check_deliverability </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l286"><span class="ln">286  </span></a>        <span class="s1">check_deliverability = CHECK_DELIVERABILITY</span>
+<a name="l287"><span class="ln">287  </span></a>    <span class="s2">if </span><span class="s1">test_environment </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l288"><span class="ln">288  </span></a>        <span class="s1">test_environment = TEST_ENVIRONMENT</span>
+<a name="l289"><span class="ln">289  </span></a>    <span class="s2">if </span><span class="s1">timeout </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l290"><span class="ln">290  </span></a>        <span class="s1">timeout = DEFAULT_TIMEOUT</span>
+<a name="l291"><span class="ln">291  </span></a>
+<a name="l292"><span class="ln">292  </span></a>    <span class="s0"># Allow email to be a str or bytes instance. If bytes,</span>
+<a name="l293"><span class="ln">293  </span></a>    <span class="s0"># it must be ASCII because that's how the bytes work</span>
+<a name="l294"><span class="ln">294  </span></a>    <span class="s0"># on the wire with SMTP.</span>
+<a name="l295"><span class="ln">295  </span></a>    <span class="s2">if not </span><span class="s1">isinstance(email</span><span class="s2">, </span><span class="s1">(str</span><span class="s2">, </span><span class="s1">unicode_class)):</span>
+<a name="l296"><span class="ln">296  </span></a>        <span class="s2">try</span><span class="s1">:</span>
+<a name="l297"><span class="ln">297  </span></a>            <span class="s1">email = email.decode(</span><span class="s4">&quot;ascii&quot;</span><span class="s1">)</span>
+<a name="l298"><span class="ln">298  </span></a>        <span class="s2">except </span><span class="s1">ValueError:</span>
+<a name="l299"><span class="ln">299  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is not valid ASCII.&quot;</span><span class="s1">)</span>
+<a name="l300"><span class="ln">300  </span></a>
+<a name="l301"><span class="ln">301  </span></a>    <span class="s0"># At-sign.</span>
+<a name="l302"><span class="ln">302  </span></a>    <span class="s1">parts = email.split(</span><span class="s4">'@'</span><span class="s1">)</span>
+<a name="l303"><span class="ln">303  </span></a>    <span class="s2">if </span><span class="s1">len(parts) != </span><span class="s3">2</span><span class="s1">:</span>
+<a name="l304"><span class="ln">304  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is not valid. It must have exactly one @-sign.&quot;</span><span class="s1">)</span>
+<a name="l305"><span class="ln">305  </span></a>
+<a name="l306"><span class="ln">306  </span></a>    <span class="s0"># Collect return values in this instance.</span>
+<a name="l307"><span class="ln">307  </span></a>    <span class="s1">ret = ValidatedEmail()</span>
+<a name="l308"><span class="ln">308  </span></a>    <span class="s1">ret.original_email = email</span>
+<a name="l309"><span class="ln">309  </span></a>
+<a name="l310"><span class="ln">310  </span></a>    <span class="s0"># Validate the email address's local part syntax and get a normalized form.</span>
+<a name="l311"><span class="ln">311  </span></a>    <span class="s1">local_part_info = validate_email_local_part(parts[</span><span class="s3">0</span><span class="s1">]</span><span class="s2">,</span>
+<a name="l312"><span class="ln">312  </span></a>                                                <span class="s1">allow_smtputf8=allow_smtputf8</span><span class="s2">,</span>
+<a name="l313"><span class="ln">313  </span></a>                                                <span class="s1">allow_empty_local=allow_empty_local)</span>
+<a name="l314"><span class="ln">314  </span></a>    <span class="s1">ret.local_part = local_part_info[</span><span class="s4">&quot;local_part&quot;</span><span class="s1">]</span>
+<a name="l315"><span class="ln">315  </span></a>    <span class="s1">ret.ascii_local_part = local_part_info[</span><span class="s4">&quot;ascii_local_part&quot;</span><span class="s1">]</span>
+<a name="l316"><span class="ln">316  </span></a>    <span class="s1">ret.smtputf8 = local_part_info[</span><span class="s4">&quot;smtputf8&quot;</span><span class="s1">]</span>
+<a name="l317"><span class="ln">317  </span></a>
+<a name="l318"><span class="ln">318  </span></a>    <span class="s0"># Validate the email address's domain part syntax and get a normalized form.</span>
+<a name="l319"><span class="ln">319  </span></a>    <span class="s1">domain_part_info = validate_email_domain_part(parts[</span><span class="s3">1</span><span class="s1">]</span><span class="s2">, </span><span class="s1">test_environment=test_environment</span><span class="s2">, </span><span class="s1">globally_deliverable=globally_deliverable)</span>
+<a name="l320"><span class="ln">320  </span></a>    <span class="s1">ret.domain = domain_part_info[</span><span class="s4">&quot;domain&quot;</span><span class="s1">]</span>
+<a name="l321"><span class="ln">321  </span></a>    <span class="s1">ret.ascii_domain = domain_part_info[</span><span class="s4">&quot;ascii_domain&quot;</span><span class="s1">]</span>
+<a name="l322"><span class="ln">322  </span></a>
+<a name="l323"><span class="ln">323  </span></a>    <span class="s0"># Construct the complete normalized form.</span>
+<a name="l324"><span class="ln">324  </span></a>    <span class="s1">ret.email = ret.local_part + </span><span class="s4">&quot;@&quot; </span><span class="s1">+ ret.domain</span>
+<a name="l325"><span class="ln">325  </span></a>
+<a name="l326"><span class="ln">326  </span></a>    <span class="s0"># If the email address has an ASCII form, add it.</span>
+<a name="l327"><span class="ln">327  </span></a>    <span class="s2">if not </span><span class="s1">ret.smtputf8:</span>
+<a name="l328"><span class="ln">328  </span></a>        <span class="s1">ret.ascii_email = ret.ascii_local_part + </span><span class="s4">&quot;@&quot; </span><span class="s1">+ ret.ascii_domain</span>
+<a name="l329"><span class="ln">329  </span></a>
+<a name="l330"><span class="ln">330  </span></a>    <span class="s0"># If the email address has an ASCII representation, then we assume it may be</span>
+<a name="l331"><span class="ln">331  </span></a>    <span class="s0"># transmitted in ASCII (we can't assume SMTPUTF8 will be used on all hops to</span>
+<a name="l332"><span class="ln">332  </span></a>    <span class="s0"># the destination) and the length limit applies to ASCII characters (which is</span>
+<a name="l333"><span class="ln">333  </span></a>    <span class="s0"># the same as octets). The number of characters in the internationalized form</span>
+<a name="l334"><span class="ln">334  </span></a>    <span class="s0"># may be many fewer (because IDNA ASCII is verbose) and could be less than 254</span>
+<a name="l335"><span class="ln">335  </span></a>    <span class="s0"># Unicode characters, and of course the number of octets over the limit may</span>
+<a name="l336"><span class="ln">336  </span></a>    <span class="s0"># not be the number of characters over the limit, so if the email address is</span>
+<a name="l337"><span class="ln">337  </span></a>    <span class="s0"># internationalized, we can't give any simple information about why the address</span>
+<a name="l338"><span class="ln">338  </span></a>    <span class="s0"># is too long.</span>
+<a name="l339"><span class="ln">339  </span></a>    <span class="s0">#</span>
+<a name="l340"><span class="ln">340  </span></a>    <span class="s0"># In addition, check that the UTF-8 encoding (i.e. not IDNA ASCII and not</span>
+<a name="l341"><span class="ln">341  </span></a>    <span class="s0"># Unicode characters) is at most 254 octets. If the addres is transmitted using</span>
+<a name="l342"><span class="ln">342  </span></a>    <span class="s0"># SMTPUTF8, then the length limit probably applies to the UTF-8 encoded octets.</span>
+<a name="l343"><span class="ln">343  </span></a>    <span class="s0"># If the email address has an ASCII form that differs from its internationalized</span>
+<a name="l344"><span class="ln">344  </span></a>    <span class="s0"># form, I don't think the internationalized form can be longer, and so the ASCII</span>
+<a name="l345"><span class="ln">345  </span></a>    <span class="s0"># form length check would be sufficient. If there is no ASCII form, then we have</span>
+<a name="l346"><span class="ln">346  </span></a>    <span class="s0"># to check the UTF-8 encoding. The UTF-8 encoding could be up to about four times</span>
+<a name="l347"><span class="ln">347  </span></a>    <span class="s0"># longer than the number of characters.</span>
+<a name="l348"><span class="ln">348  </span></a>    <span class="s0">#</span>
+<a name="l349"><span class="ln">349  </span></a>    <span class="s0"># See the length checks on the local part and the domain.</span>
+<a name="l350"><span class="ln">350  </span></a>    <span class="s2">if </span><span class="s1">ret.ascii_email </span><span class="s2">and </span><span class="s1">len(ret.ascii_email) &gt; EMAIL_MAX_LENGTH:</span>
+<a name="l351"><span class="ln">351  </span></a>        <span class="s2">if </span><span class="s1">ret.ascii_email == ret.email:</span>
+<a name="l352"><span class="ln">352  </span></a>            <span class="s1">reason = __get_length_reason(ret.ascii_email)</span>
+<a name="l353"><span class="ln">353  </span></a>        <span class="s2">elif </span><span class="s1">len(ret.email) &gt; EMAIL_MAX_LENGTH:</span>
+<a name="l354"><span class="ln">354  </span></a>            <span class="s0"># If there are more than 254 characters, then the ASCII</span>
+<a name="l355"><span class="ln">355  </span></a>            <span class="s0"># form is definitely going to be too long.</span>
+<a name="l356"><span class="ln">356  </span></a>            <span class="s1">reason = __get_length_reason(ret.email</span><span class="s2">, </span><span class="s1">utf8=</span><span class="s2">True</span><span class="s1">)</span>
+<a name="l357"><span class="ln">357  </span></a>        <span class="s2">else</span><span class="s1">:</span>
+<a name="l358"><span class="ln">358  </span></a>            <span class="s1">reason = </span><span class="s4">&quot;(when converted to IDNA ASCII)&quot;</span>
+<a name="l359"><span class="ln">359  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is too long {}.&quot;</span><span class="s1">.format(reason))</span>
+<a name="l360"><span class="ln">360  </span></a>    <span class="s2">if </span><span class="s1">len(ret.email.encode(</span><span class="s4">&quot;utf8&quot;</span><span class="s1">)) &gt; EMAIL_MAX_LENGTH:</span>
+<a name="l361"><span class="ln">361  </span></a>        <span class="s2">if </span><span class="s1">len(ret.email) &gt; EMAIL_MAX_LENGTH:</span>
+<a name="l362"><span class="ln">362  </span></a>            <span class="s0"># If there are more than 254 characters, then the UTF-8</span>
+<a name="l363"><span class="ln">363  </span></a>            <span class="s0"># encoding is definitely going to be too long.</span>
+<a name="l364"><span class="ln">364  </span></a>            <span class="s1">reason = __get_length_reason(ret.email</span><span class="s2">, </span><span class="s1">utf8=</span><span class="s2">True</span><span class="s1">)</span>
+<a name="l365"><span class="ln">365  </span></a>        <span class="s2">else</span><span class="s1">:</span>
+<a name="l366"><span class="ln">366  </span></a>            <span class="s1">reason = </span><span class="s4">&quot;(when encoded in bytes)&quot;</span>
+<a name="l367"><span class="ln">367  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is too long {}.&quot;</span><span class="s1">.format(reason))</span>
+<a name="l368"><span class="ln">368  </span></a>
+<a name="l369"><span class="ln">369  </span></a>    <span class="s2">if </span><span class="s1">check_deliverability </span><span class="s2">and not </span><span class="s1">test_environment:</span>
+<a name="l370"><span class="ln">370  </span></a>        <span class="s0"># Validate the email address's deliverability using DNS</span>
+<a name="l371"><span class="ln">371  </span></a>        <span class="s0"># and update the return dict with metadata.</span>
+<a name="l372"><span class="ln">372  </span></a>        <span class="s1">deliverability_info = validate_email_deliverability(</span>
+<a name="l373"><span class="ln">373  </span></a>            <span class="s1">ret[</span><span class="s4">&quot;domain&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">ret[</span><span class="s4">&quot;domain_i18n&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">timeout</span><span class="s2">, </span><span class="s1">dns_resolver</span>
+<a name="l374"><span class="ln">374  </span></a>        <span class="s1">)</span>
+<a name="l375"><span class="ln">375  </span></a>        <span class="s2">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s2">in </span><span class="s1">deliverability_info.items():</span>
+<a name="l376"><span class="ln">376  </span></a>            <span class="s1">setattr(ret</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value)</span>
+<a name="l377"><span class="ln">377  </span></a>
+<a name="l378"><span class="ln">378  </span></a>    <span class="s2">return </span><span class="s1">ret</span>
+<a name="l379"><span class="ln">379  </span></a>
+<a name="l380"><span class="ln">380  </span></a>
+<a name="l381"><span class="ln">381  </span></a><span class="s2">def </span><span class="s1">validate_email_local_part(local</span><span class="s2">, </span><span class="s1">allow_smtputf8=</span><span class="s2">True, </span><span class="s1">allow_empty_local=</span><span class="s2">False</span><span class="s1">):</span>
+<a name="l382"><span class="ln">382  </span></a>    <span class="s0"># Validates the local part of an email address.</span>
+<a name="l383"><span class="ln">383  </span></a>
+<a name="l384"><span class="ln">384  </span></a>    <span class="s2">if </span><span class="s1">len(local) == </span><span class="s3">0</span><span class="s1">:</span>
+<a name="l385"><span class="ln">385  </span></a>        <span class="s2">if not </span><span class="s1">allow_empty_local:</span>
+<a name="l386"><span class="ln">386  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;There must be something before the @-sign.&quot;</span><span class="s1">)</span>
+<a name="l387"><span class="ln">387  </span></a>        <span class="s2">else</span><span class="s1">:</span>
+<a name="l388"><span class="ln">388  </span></a>            <span class="s0"># The caller allows an empty local part. Useful for validating certain</span>
+<a name="l389"><span class="ln">389  </span></a>            <span class="s0"># Postfix aliases.</span>
+<a name="l390"><span class="ln">390  </span></a>            <span class="s2">return </span><span class="s1">{</span>
+<a name="l391"><span class="ln">391  </span></a>                <span class="s4">&quot;local_part&quot;</span><span class="s1">: local</span><span class="s2">,</span>
+<a name="l392"><span class="ln">392  </span></a>                <span class="s4">&quot;ascii_local_part&quot;</span><span class="s1">: local</span><span class="s2">,</span>
+<a name="l393"><span class="ln">393  </span></a>                <span class="s4">&quot;smtputf8&quot;</span><span class="s1">: </span><span class="s2">False,</span>
+<a name="l394"><span class="ln">394  </span></a>            <span class="s1">}</span>
+<a name="l395"><span class="ln">395  </span></a>
+<a name="l396"><span class="ln">396  </span></a>    <span class="s0"># RFC 5321 4.5.3.1.1</span>
+<a name="l397"><span class="ln">397  </span></a>    <span class="s0"># We're checking the number of characters here. If the local part</span>
+<a name="l398"><span class="ln">398  </span></a>    <span class="s0"># is ASCII-only, then that's the same as bytes (octets). If it's</span>
+<a name="l399"><span class="ln">399  </span></a>    <span class="s0"># internationalized, then the UTF-8 encoding may be longer, but</span>
+<a name="l400"><span class="ln">400  </span></a>    <span class="s0"># that may not be relevant. We will check the total address length</span>
+<a name="l401"><span class="ln">401  </span></a>    <span class="s0"># instead.</span>
+<a name="l402"><span class="ln">402  </span></a>    <span class="s2">if </span><span class="s1">len(local) &gt; LOCAL_PART_MAX_LENGTH:</span>
+<a name="l403"><span class="ln">403  </span></a>        <span class="s1">reason = __get_length_reason(local</span><span class="s2">, </span><span class="s1">limit=LOCAL_PART_MAX_LENGTH)</span>
+<a name="l404"><span class="ln">404  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is too long before the @-sign {}.&quot;</span><span class="s1">.format(reason))</span>
+<a name="l405"><span class="ln">405  </span></a>
+<a name="l406"><span class="ln">406  </span></a>    <span class="s0"># Check the local part against the regular expression for the older ASCII requirements.</span>
+<a name="l407"><span class="ln">407  </span></a>    <span class="s1">m = re.match(DOT_ATOM_TEXT + </span><span class="s4">&quot;</span><span class="s2">\\</span><span class="s4">Z&quot;</span><span class="s2">, </span><span class="s1">local)</span>
+<a name="l408"><span class="ln">408  </span></a>    <span class="s2">if </span><span class="s1">m:</span>
+<a name="l409"><span class="ln">409  </span></a>        <span class="s0"># Return the local part unchanged and flag that SMTPUTF8 is not needed.</span>
+<a name="l410"><span class="ln">410  </span></a>        <span class="s2">return </span><span class="s1">{</span>
+<a name="l411"><span class="ln">411  </span></a>            <span class="s4">&quot;local_part&quot;</span><span class="s1">: local</span><span class="s2">,</span>
+<a name="l412"><span class="ln">412  </span></a>            <span class="s4">&quot;ascii_local_part&quot;</span><span class="s1">: local</span><span class="s2">,</span>
+<a name="l413"><span class="ln">413  </span></a>            <span class="s4">&quot;smtputf8&quot;</span><span class="s1">: </span><span class="s2">False,</span>
+<a name="l414"><span class="ln">414  </span></a>        <span class="s1">}</span>
+<a name="l415"><span class="ln">415  </span></a>
+<a name="l416"><span class="ln">416  </span></a>    <span class="s2">else</span><span class="s1">:</span>
+<a name="l417"><span class="ln">417  </span></a>        <span class="s0"># The local part failed the ASCII check. Now try the extended internationalized requirements.</span>
+<a name="l418"><span class="ln">418  </span></a>        <span class="s1">m = re.match(DOT_ATOM_TEXT_INTL + </span><span class="s4">&quot;</span><span class="s2">\\</span><span class="s4">Z&quot;</span><span class="s2">, </span><span class="s1">local)</span>
+<a name="l419"><span class="ln">419  </span></a>        <span class="s2">if not </span><span class="s1">m:</span>
+<a name="l420"><span class="ln">420  </span></a>            <span class="s0"># It's not a valid internationalized address either. Report which characters were not valid.</span>
+<a name="l421"><span class="ln">421  </span></a>            <span class="s1">bad_chars = </span><span class="s4">', '</span><span class="s1">.join(sorted(set(</span>
+<a name="l422"><span class="ln">422  </span></a>                <span class="s1">unicodedata.name(c</span><span class="s2">, </span><span class="s1">repr(c)) </span><span class="s2">for </span><span class="s1">c </span><span class="s2">in </span><span class="s1">local </span><span class="s2">if not </span><span class="s1">re.match(</span><span class="s4">u&quot;[&quot; </span><span class="s1">+ (ATEXT </span><span class="s2">if not </span><span class="s1">allow_smtputf8 </span><span class="s2">else </span><span class="s1">ATEXT_INTL) + </span><span class="s4">u&quot;]&quot;</span><span class="s2">, </span><span class="s1">c)</span>
+<a name="l423"><span class="ln">423  </span></a>            <span class="s1">)))</span>
+<a name="l424"><span class="ln">424  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address contains invalid characters before the @-sign: %s.&quot; </span><span class="s1">% bad_chars)</span>
+<a name="l425"><span class="ln">425  </span></a>
+<a name="l426"><span class="ln">426  </span></a>        <span class="s0"># It would be valid if internationalized characters were allowed by the caller.</span>
+<a name="l427"><span class="ln">427  </span></a>        <span class="s2">if not </span><span class="s1">allow_smtputf8:</span>
+<a name="l428"><span class="ln">428  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;Internationalized characters before the @-sign are not supported.&quot;</span><span class="s1">)</span>
+<a name="l429"><span class="ln">429  </span></a>
+<a name="l430"><span class="ln">430  </span></a>        <span class="s0"># It's valid.</span>
+<a name="l431"><span class="ln">431  </span></a>
+<a name="l432"><span class="ln">432  </span></a>        <span class="s0"># RFC 6532 section 3.1 also says that Unicode NFC normalization should be applied,</span>
+<a name="l433"><span class="ln">433  </span></a>        <span class="s0"># so we'll return the normalized local part in the return value.</span>
+<a name="l434"><span class="ln">434  </span></a>        <span class="s1">local = unicodedata.normalize(</span><span class="s4">&quot;NFC&quot;</span><span class="s2">, </span><span class="s1">local)</span>
+<a name="l435"><span class="ln">435  </span></a>
+<a name="l436"><span class="ln">436  </span></a>        <span class="s0"># Check for unsafe characters.</span>
+<a name="l437"><span class="ln">437  </span></a>        <span class="s0"># Some of this may be redundant with the range U+0080 to U+10FFFF that is checked</span>
+<a name="l438"><span class="ln">438  </span></a>        <span class="s0"># by DOT_ATOM_TEXT_INTL.</span>
+<a name="l439"><span class="ln">439  </span></a>        <span class="s2">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">c </span><span class="s2">in </span><span class="s1">enumerate(local):</span>
+<a name="l440"><span class="ln">440  </span></a>            <span class="s1">category = unicodedata.category(c)</span>
+<a name="l441"><span class="ln">441  </span></a>            <span class="s2">if </span><span class="s1">category[</span><span class="s3">0</span><span class="s1">] </span><span class="s2">in </span><span class="s1">(</span><span class="s4">&quot;L&quot;</span><span class="s2">, </span><span class="s4">&quot;N&quot;</span><span class="s2">, </span><span class="s4">&quot;P&quot;</span><span class="s2">, </span><span class="s4">&quot;S&quot;</span><span class="s1">):</span>
+<a name="l442"><span class="ln">442  </span></a>                <span class="s0"># letters, numbers, punctuation, and symbols are permitted</span>
+<a name="l443"><span class="ln">443  </span></a>                <span class="s2">pass</span>
+<a name="l444"><span class="ln">444  </span></a>            <span class="s2">elif </span><span class="s1">category[</span><span class="s3">0</span><span class="s1">] == </span><span class="s4">&quot;M&quot;</span><span class="s1">:</span>
+<a name="l445"><span class="ln">445  </span></a>                <span class="s0"># combining character in first position would combine with something</span>
+<a name="l446"><span class="ln">446  </span></a>                <span class="s0"># outside of the email address if concatenated to the right, but are</span>
+<a name="l447"><span class="ln">447  </span></a>                <span class="s0"># otherwise permitted</span>
+<a name="l448"><span class="ln">448  </span></a>                <span class="s2">if </span><span class="s1">i == </span><span class="s3">0</span><span class="s1">:</span>
+<a name="l449"><span class="ln">449  </span></a>                    <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address contains an initial invalid character (%s).&quot;</span>
+<a name="l450"><span class="ln">450  </span></a>                                           <span class="s1">% unicodedata.name(c</span><span class="s2">, </span><span class="s1">repr(c)))</span>
+<a name="l451"><span class="ln">451  </span></a>            <span class="s2">elif </span><span class="s1">category[</span><span class="s3">0</span><span class="s1">] </span><span class="s2">in </span><span class="s1">(</span><span class="s4">&quot;Z&quot;</span><span class="s2">, </span><span class="s4">&quot;C&quot;</span><span class="s1">):</span>
+<a name="l452"><span class="ln">452  </span></a>                <span class="s0"># spaces and line/paragraph characters (Z) and</span>
+<a name="l453"><span class="ln">453  </span></a>                <span class="s0"># control, format, surrogate, private use, and unassigned code points (C)</span>
+<a name="l454"><span class="ln">454  </span></a>                <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address contains an invalid character (%s).&quot;</span>
+<a name="l455"><span class="ln">455  </span></a>                                       <span class="s1">% unicodedata.name(c</span><span class="s2">, </span><span class="s1">repr(c)))</span>
+<a name="l456"><span class="ln">456  </span></a>            <span class="s2">else</span><span class="s1">:</span>
+<a name="l457"><span class="ln">457  </span></a>                <span class="s0"># All categories should be handled above, but in case there is something new</span>
+<a name="l458"><span class="ln">458  </span></a>                <span class="s0"># in the future.</span>
+<a name="l459"><span class="ln">459  </span></a>                <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address contains a character (%s; category %s) that may not be safe.&quot;</span>
+<a name="l460"><span class="ln">460  </span></a>                                       <span class="s1">% (unicodedata.name(c</span><span class="s2">, </span><span class="s1">repr(c))</span><span class="s2">, </span><span class="s1">category))</span>
+<a name="l461"><span class="ln">461  </span></a>
+<a name="l462"><span class="ln">462  </span></a>        <span class="s0"># Try encoding to UTF-8. Failure is possible with some characters like</span>
+<a name="l463"><span class="ln">463  </span></a>        <span class="s0"># surrogate code points, but those are checked above. Still, we don't</span>
+<a name="l464"><span class="ln">464  </span></a>        <span class="s0"># want to have an unhandled exception later.</span>
+<a name="l465"><span class="ln">465  </span></a>        <span class="s2">try</span><span class="s1">:</span>
+<a name="l466"><span class="ln">466  </span></a>            <span class="s1">local.encode(</span><span class="s4">&quot;utf8&quot;</span><span class="s1">)</span>
+<a name="l467"><span class="ln">467  </span></a>        <span class="s2">except </span><span class="s1">ValueError:</span>
+<a name="l468"><span class="ln">468  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address contains an invalid character.&quot;</span><span class="s1">)</span>
+<a name="l469"><span class="ln">469  </span></a>
+<a name="l470"><span class="ln">470  </span></a>        <span class="s0"># Flag that SMTPUTF8 will be required for deliverability.</span>
+<a name="l471"><span class="ln">471  </span></a>        <span class="s2">return </span><span class="s1">{</span>
+<a name="l472"><span class="ln">472  </span></a>            <span class="s4">&quot;local_part&quot;</span><span class="s1">: local</span><span class="s2">,</span>
+<a name="l473"><span class="ln">473  </span></a>            <span class="s4">&quot;ascii_local_part&quot;</span><span class="s1">: </span><span class="s2">None,  </span><span class="s0"># no ASCII form is possible</span>
+<a name="l474"><span class="ln">474  </span></a>            <span class="s4">&quot;smtputf8&quot;</span><span class="s1">: </span><span class="s2">True,</span>
+<a name="l475"><span class="ln">475  </span></a>        <span class="s1">}</span>
+<a name="l476"><span class="ln">476  </span></a>
+<a name="l477"><span class="ln">477  </span></a>
+<a name="l478"><span class="ln">478  </span></a><span class="s2">def </span><span class="s1">validate_email_domain_part(domain</span><span class="s2">, </span><span class="s1">test_environment=</span><span class="s2">False, </span><span class="s1">globally_deliverable=</span><span class="s2">True</span><span class="s1">):</span>
+<a name="l479"><span class="ln">479  </span></a>    <span class="s0"># Empty?</span>
+<a name="l480"><span class="ln">480  </span></a>    <span class="s2">if </span><span class="s1">len(domain) == </span><span class="s3">0</span><span class="s1">:</span>
+<a name="l481"><span class="ln">481  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;There must be something after the @-sign.&quot;</span><span class="s1">)</span>
+<a name="l482"><span class="ln">482  </span></a>
+<a name="l483"><span class="ln">483  </span></a>    <span class="s0"># Perform UTS-46 normalization, which includes casefolding, NFC normalization,</span>
+<a name="l484"><span class="ln">484  </span></a>    <span class="s0"># and converting all label separators (the period/full stop, fullwidth full stop,</span>
+<a name="l485"><span class="ln">485  </span></a>    <span class="s0"># ideographic full stop, and halfwidth ideographic full stop) to basic periods.</span>
+<a name="l486"><span class="ln">486  </span></a>    <span class="s0"># It will also raise an exception if there is an invalid character in the input,</span>
+<a name="l487"><span class="ln">487  </span></a>    <span class="s0"># such as &quot;⒈&quot; which is invalid because it would expand to include a period.</span>
+<a name="l488"><span class="ln">488  </span></a>    <span class="s2">try</span><span class="s1">:</span>
+<a name="l489"><span class="ln">489  </span></a>        <span class="s1">domain = idna.uts46_remap(domain</span><span class="s2">, </span><span class="s1">std3_rules=</span><span class="s2">False, </span><span class="s1">transitional=</span><span class="s2">False</span><span class="s1">)</span>
+<a name="l490"><span class="ln">490  </span></a>    <span class="s2">except </span><span class="s1">idna.IDNAError </span><span class="s2">as </span><span class="s1">e:</span>
+<a name="l491"><span class="ln">491  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The domain name %s contains invalid characters (%s).&quot; </span><span class="s1">% (domain</span><span class="s2">, </span><span class="s1">str(e)))</span>
+<a name="l492"><span class="ln">492  </span></a>
+<a name="l493"><span class="ln">493  </span></a>    <span class="s0"># Now we can perform basic checks on the use of periods (since equivalent</span>
+<a name="l494"><span class="ln">494  </span></a>    <span class="s0"># symbols have been mapped to periods). These checks are needed because the</span>
+<a name="l495"><span class="ln">495  </span></a>    <span class="s0"># IDNA library doesn't handle well domains that have empty labels (i.e. initial</span>
+<a name="l496"><span class="ln">496  </span></a>    <span class="s0"># dot, trailing dot, or two dots in a row).</span>
+<a name="l497"><span class="ln">497  </span></a>    <span class="s2">if </span><span class="s1">domain.endswith(</span><span class="s4">&quot;.&quot;</span><span class="s1">):</span>
+<a name="l498"><span class="ln">498  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;An email address cannot end with a period.&quot;</span><span class="s1">)</span>
+<a name="l499"><span class="ln">499  </span></a>    <span class="s2">if </span><span class="s1">domain.startswith(</span><span class="s4">&quot;.&quot;</span><span class="s1">):</span>
+<a name="l500"><span class="ln">500  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;An email address cannot have a period immediately after the @-sign.&quot;</span><span class="s1">)</span>
+<a name="l501"><span class="ln">501  </span></a>    <span class="s2">if </span><span class="s4">&quot;..&quot; </span><span class="s2">in </span><span class="s1">domain:</span>
+<a name="l502"><span class="ln">502  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;An email address cannot have two periods in a row.&quot;</span><span class="s1">)</span>
+<a name="l503"><span class="ln">503  </span></a>
+<a name="l504"><span class="ln">504  </span></a>    <span class="s0"># Regardless of whether international characters are actually used,</span>
+<a name="l505"><span class="ln">505  </span></a>    <span class="s0"># first convert to IDNA ASCII. For ASCII-only domains, the transformation</span>
+<a name="l506"><span class="ln">506  </span></a>    <span class="s0"># does nothing. If internationalized characters are present, the MTA</span>
+<a name="l507"><span class="ln">507  </span></a>    <span class="s0"># must either support SMTPUTF8 or the mail client must convert the</span>
+<a name="l508"><span class="ln">508  </span></a>    <span class="s0"># domain name to IDNA before submission.</span>
+<a name="l509"><span class="ln">509  </span></a>    <span class="s0">#</span>
+<a name="l510"><span class="ln">510  </span></a>    <span class="s0"># Unfortunately this step incorrectly 'fixes' domain names with leading</span>
+<a name="l511"><span class="ln">511  </span></a>    <span class="s0"># periods by removing them, so we have to check for this above. It also gives</span>
+<a name="l512"><span class="ln">512  </span></a>    <span class="s0"># a funky error message (&quot;No input&quot;) when there are two periods in a</span>
+<a name="l513"><span class="ln">513  </span></a>    <span class="s0"># row, also checked separately above.</span>
+<a name="l514"><span class="ln">514  </span></a>    <span class="s2">try</span><span class="s1">:</span>
+<a name="l515"><span class="ln">515  </span></a>        <span class="s1">ascii_domain = idna.encode(domain</span><span class="s2">, </span><span class="s1">uts46=</span><span class="s2">False</span><span class="s1">).decode(</span><span class="s4">&quot;ascii&quot;</span><span class="s1">)</span>
+<a name="l516"><span class="ln">516  </span></a>    <span class="s2">except </span><span class="s1">idna.IDNAError </span><span class="s2">as </span><span class="s1">e:</span>
+<a name="l517"><span class="ln">517  </span></a>        <span class="s2">if </span><span class="s4">&quot;Domain too long&quot; </span><span class="s2">in </span><span class="s1">str(e):</span>
+<a name="l518"><span class="ln">518  </span></a>            <span class="s0"># We can't really be more specific because UTS-46 normalization means</span>
+<a name="l519"><span class="ln">519  </span></a>            <span class="s0"># the length check is applied to a string that is different from the</span>
+<a name="l520"><span class="ln">520  </span></a>            <span class="s0"># one the user supplied. Also I'm not sure if the length check applies</span>
+<a name="l521"><span class="ln">521  </span></a>            <span class="s0"># to the internationalized form, the IDNA ASCII form, or even both!</span>
+<a name="l522"><span class="ln">522  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is too long after the @-sign.&quot;</span><span class="s1">)</span>
+<a name="l523"><span class="ln">523  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The domain name %s contains invalid characters (%s).&quot; </span><span class="s1">% (domain</span><span class="s2">, </span><span class="s1">str(e)))</span>
+<a name="l524"><span class="ln">524  </span></a>
+<a name="l525"><span class="ln">525  </span></a>    <span class="s0"># We may have been given an IDNA ASCII domain to begin with. Check</span>
+<a name="l526"><span class="ln">526  </span></a>    <span class="s0"># that the domain actually conforms to IDNA. It could look like IDNA</span>
+<a name="l527"><span class="ln">527  </span></a>    <span class="s0"># but not be actual IDNA. For ASCII-only domains, the conversion out</span>
+<a name="l528"><span class="ln">528  </span></a>    <span class="s0"># of IDNA just gives the same thing back.</span>
+<a name="l529"><span class="ln">529  </span></a>    <span class="s0">#</span>
+<a name="l530"><span class="ln">530  </span></a>    <span class="s0"># This gives us the canonical internationalized form of the domain,</span>
+<a name="l531"><span class="ln">531  </span></a>    <span class="s0"># which we should use in all error messages.</span>
+<a name="l532"><span class="ln">532  </span></a>    <span class="s2">try</span><span class="s1">:</span>
+<a name="l533"><span class="ln">533  </span></a>        <span class="s1">domain_i18n = idna.decode(ascii_domain.encode(</span><span class="s4">'ascii'</span><span class="s1">))</span>
+<a name="l534"><span class="ln">534  </span></a>    <span class="s2">except </span><span class="s1">idna.IDNAError </span><span class="s2">as </span><span class="s1">e:</span>
+<a name="l535"><span class="ln">535  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The domain name %s is not valid IDNA (%s).&quot; </span><span class="s1">% (ascii_domain</span><span class="s2">, </span><span class="s1">str(e)))</span>
+<a name="l536"><span class="ln">536  </span></a>
+<a name="l537"><span class="ln">537  </span></a>    <span class="s0"># RFC 5321 4.5.3.1.2</span>
+<a name="l538"><span class="ln">538  </span></a>    <span class="s0"># We're checking the number of bytes (octets) here, which can be much</span>
+<a name="l539"><span class="ln">539  </span></a>    <span class="s0"># higher than the number of characters in internationalized domains,</span>
+<a name="l540"><span class="ln">540  </span></a>    <span class="s0"># on the assumption that the domain may be transmitted without SMTPUTF8</span>
+<a name="l541"><span class="ln">541  </span></a>    <span class="s0"># as IDNA ASCII. This is also checked by idna.encode, so this exception</span>
+<a name="l542"><span class="ln">542  </span></a>    <span class="s0"># is never reached.</span>
+<a name="l543"><span class="ln">543  </span></a>    <span class="s2">if </span><span class="s1">len(ascii_domain) &gt; DOMAIN_MAX_LENGTH:</span>
+<a name="l544"><span class="ln">544  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address is too long after the @-sign.&quot;</span><span class="s1">)</span>
+<a name="l545"><span class="ln">545  </span></a>
+<a name="l546"><span class="ln">546  </span></a>    <span class="s0"># A &quot;dot atom text&quot;, per RFC 2822 3.2.4, but using the restricted</span>
+<a name="l547"><span class="ln">547  </span></a>    <span class="s0"># characters allowed in a hostname (see ATEXT_HOSTNAME above).</span>
+<a name="l548"><span class="ln">548  </span></a>    <span class="s1">DOT_ATOM_TEXT = ATEXT_HOSTNAME + </span><span class="s4">r'(?:\.' </span><span class="s1">+ ATEXT_HOSTNAME + </span><span class="s4">r')*'</span>
+<a name="l549"><span class="ln">549  </span></a>
+<a name="l550"><span class="ln">550  </span></a>    <span class="s0"># Check the regular expression. This is probably entirely redundant</span>
+<a name="l551"><span class="ln">551  </span></a>    <span class="s0"># with idna.decode, which also checks this format.</span>
+<a name="l552"><span class="ln">552  </span></a>    <span class="s1">m = re.match(DOT_ATOM_TEXT + </span><span class="s4">&quot;</span><span class="s2">\\</span><span class="s4">Z&quot;</span><span class="s2">, </span><span class="s1">ascii_domain)</span>
+<a name="l553"><span class="ln">553  </span></a>    <span class="s2">if not </span><span class="s1">m:</span>
+<a name="l554"><span class="ln">554  </span></a>        <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The email address contains invalid characters after the @-sign.&quot;</span><span class="s1">)</span>
+<a name="l555"><span class="ln">555  </span></a>
+<a name="l556"><span class="ln">556  </span></a>    <span class="s2">if </span><span class="s1">globally_deliverable:</span>
+<a name="l557"><span class="ln">557  </span></a>        <span class="s0"># All publicly deliverable addresses have domain named with at least</span>
+<a name="l558"><span class="ln">558  </span></a>        <span class="s0"># one period, and we'll consider the lack of a period a syntax error</span>
+<a name="l559"><span class="ln">559  </span></a>        <span class="s0"># since that will match people's sense of what an email address looks</span>
+<a name="l560"><span class="ln">560  </span></a>        <span class="s0"># like. We'll skip this in test environments to allow '@test' email</span>
+<a name="l561"><span class="ln">561  </span></a>        <span class="s0"># addresses.</span>
+<a name="l562"><span class="ln">562  </span></a>        <span class="s2">if </span><span class="s4">&quot;.&quot; </span><span class="s2">not in </span><span class="s1">ascii_domain </span><span class="s2">and not </span><span class="s1">(ascii_domain == </span><span class="s4">&quot;test&quot; </span><span class="s2">and </span><span class="s1">test_environment):</span>
+<a name="l563"><span class="ln">563  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The domain name %s is not valid. It should have a period.&quot; </span><span class="s1">% domain_i18n)</span>
+<a name="l564"><span class="ln">564  </span></a>
+<a name="l565"><span class="ln">565  </span></a>        <span class="s0"># We also know that all TLDs currently end with a letter.</span>
+<a name="l566"><span class="ln">566  </span></a>        <span class="s2">if not </span><span class="s1">re.search(</span><span class="s4">r&quot;[A-Za-z]\Z&quot;</span><span class="s2">, </span><span class="s1">ascii_domain):</span>
+<a name="l567"><span class="ln">567  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span>
+<a name="l568"><span class="ln">568  </span></a>                <span class="s4">&quot;The domain name %s is not valid. It is not within a valid top-level domain.&quot; </span><span class="s1">% domain_i18n</span>
+<a name="l569"><span class="ln">569  </span></a>            <span class="s1">)</span>
+<a name="l570"><span class="ln">570  </span></a>
+<a name="l571"><span class="ln">571  </span></a>    <span class="s0"># Check special-use and reserved domain names.</span>
+<a name="l572"><span class="ln">572  </span></a>    <span class="s0"># Some might fail DNS-based deliverability checks, but that</span>
+<a name="l573"><span class="ln">573  </span></a>    <span class="s0"># can be turned off, so we should fail them all sooner.</span>
+<a name="l574"><span class="ln">574  </span></a>    <span class="s2">for </span><span class="s1">d </span><span class="s2">in </span><span class="s1">SPECIAL_USE_DOMAIN_NAMES:</span>
+<a name="l575"><span class="ln">575  </span></a>        <span class="s0"># See the note near the definition of SPECIAL_USE_DOMAIN_NAMES.</span>
+<a name="l576"><span class="ln">576  </span></a>        <span class="s2">if </span><span class="s1">d == </span><span class="s4">&quot;test&quot; </span><span class="s2">and </span><span class="s1">test_environment:</span>
+<a name="l577"><span class="ln">577  </span></a>            <span class="s2">continue</span>
+<a name="l578"><span class="ln">578  </span></a>
+<a name="l579"><span class="ln">579  </span></a>        <span class="s2">if </span><span class="s1">ascii_domain == d </span><span class="s2">or </span><span class="s1">ascii_domain.endswith(</span><span class="s4">&quot;.&quot; </span><span class="s1">+ d):</span>
+<a name="l580"><span class="ln">580  </span></a>            <span class="s2">raise </span><span class="s1">EmailSyntaxError(</span><span class="s4">&quot;The domain name %s is a special-use or reserved name that cannot be used with email.&quot; </span><span class="s1">% domain_i18n)</span>
+<a name="l581"><span class="ln">581  </span></a>
+<a name="l582"><span class="ln">582  </span></a>    <span class="s0"># Return the IDNA ASCII-encoded form of the domain, which is how it</span>
+<a name="l583"><span class="ln">583  </span></a>    <span class="s0"># would be transmitted on the wire (except when used with SMTPUTF8</span>
+<a name="l584"><span class="ln">584  </span></a>    <span class="s0"># possibly), as well as the canonical Unicode form of the domain,</span>
+<a name="l585"><span class="ln">585  </span></a>    <span class="s0"># which is better for display purposes. This should also take care</span>
+<a name="l586"><span class="ln">586  </span></a>    <span class="s0"># of RFC 6532 section 3.1's suggestion to apply Unicode NFC</span>
+<a name="l587"><span class="ln">587  </span></a>    <span class="s0"># normalization to addresses.</span>
+<a name="l588"><span class="ln">588  </span></a>    <span class="s2">return </span><span class="s1">{</span>
+<a name="l589"><span class="ln">589  </span></a>        <span class="s4">&quot;ascii_domain&quot;</span><span class="s1">: ascii_domain</span><span class="s2">,</span>
+<a name="l590"><span class="ln">590  </span></a>        <span class="s4">&quot;domain&quot;</span><span class="s1">: domain_i18n</span><span class="s2">,</span>
+<a name="l591"><span class="ln">591  </span></a>    <span class="s1">}</span>
+<a name="l592"><span class="ln">592  </span></a>
+<a name="l593"><span class="ln">593  </span></a>
+<a name="l594"><span class="ln">594  </span></a><span class="s2">def </span><span class="s1">validate_email_deliverability(domain</span><span class="s2">, </span><span class="s1">domain_i18n</span><span class="s2">, </span><span class="s1">timeout=DEFAULT_TIMEOUT</span><span class="s2">, </span><span class="s1">dns_resolver=</span><span class="s2">None</span><span class="s1">):</span>
+<a name="l595"><span class="ln">595  </span></a>    <span class="s0"># Check that the domain resolves to an MX record. If there is no MX record,</span>
+<a name="l596"><span class="ln">596  </span></a>    <span class="s0"># try an A or AAAA record which is a deprecated fallback for deliverability.</span>
+<a name="l597"><span class="ln">597  </span></a>    <span class="s0"># (Note that changing the DEFAULT_TIMEOUT module-level attribute</span>
+<a name="l598"><span class="ln">598  </span></a>    <span class="s0">#  will not change the default value of this method's timeout argument.)</span>
+<a name="l599"><span class="ln">599  </span></a>
+<a name="l600"><span class="ln">600  </span></a>    <span class="s0"># If no dns.resolver.Resolver was given, get dnspython's default resolver.</span>
+<a name="l601"><span class="ln">601  </span></a>    <span class="s0"># Override the default resolver's timeout. This may affect other uses of</span>
+<a name="l602"><span class="ln">602  </span></a>    <span class="s0"># dnspython in this process.</span>
+<a name="l603"><span class="ln">603  </span></a>    <span class="s2">if </span><span class="s1">dns_resolver </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l604"><span class="ln">604  </span></a>        <span class="s1">dns_resolver = dns.resolver.get_default_resolver()</span>
+<a name="l605"><span class="ln">605  </span></a>        <span class="s1">dns_resolver.lifetime = timeout</span>
+<a name="l606"><span class="ln">606  </span></a>
+<a name="l607"><span class="ln">607  </span></a>    <span class="s1">deliverability_info = {}</span>
+<a name="l608"><span class="ln">608  </span></a>
+<a name="l609"><span class="ln">609  </span></a>    <span class="s2">def </span><span class="s1">dns_resolver_resolve_shim(domain</span><span class="s2">, </span><span class="s1">record):</span>
+<a name="l610"><span class="ln">610  </span></a>        <span class="s2">try</span><span class="s1">:</span>
+<a name="l611"><span class="ln">611  </span></a>            <span class="s0"># dns.resolver.Resolver.resolve is new to dnspython 2.x.</span>
+<a name="l612"><span class="ln">612  </span></a>            <span class="s0"># https://dnspython.readthedocs.io/en/latest/resolver-class.html#dns.resolver.Resolver.resolve</span>
+<a name="l613"><span class="ln">613  </span></a>            <span class="s2">return </span><span class="s1">dns_resolver.resolve(domain</span><span class="s2">, </span><span class="s1">record)</span>
+<a name="l614"><span class="ln">614  </span></a>        <span class="s2">except </span><span class="s1">AttributeError:</span>
+<a name="l615"><span class="ln">615  </span></a>            <span class="s0"># dnspython 2.x is only available in Python 3.6 and later. For earlier versions</span>
+<a name="l616"><span class="ln">616  </span></a>            <span class="s0"># of Python, we maintain compatibility with dnspython 1.x which has a</span>
+<a name="l617"><span class="ln">617  </span></a>            <span class="s0"># dnspython.resolver.Resolver.query method instead. The only difference is that</span>
+<a name="l618"><span class="ln">618  </span></a>            <span class="s0"># query may treat the domain as relative and use the system's search domains,</span>
+<a name="l619"><span class="ln">619  </span></a>            <span class="s0"># which we prevent by adding a &quot;.&quot; to the domain name to make it absolute.</span>
+<a name="l620"><span class="ln">620  </span></a>            <span class="s0"># dns.resolver.Resolver.query is deprecated in dnspython version 2.x.</span>
+<a name="l621"><span class="ln">621  </span></a>            <span class="s0"># https://dnspython.readthedocs.io/en/latest/resolver-class.html#dns.resolver.Resolver.query</span>
+<a name="l622"><span class="ln">622  </span></a>            <span class="s2">return </span><span class="s1">dns_resolver.query(domain + </span><span class="s4">&quot;.&quot;</span><span class="s2">, </span><span class="s1">record)</span>
+<a name="l623"><span class="ln">623  </span></a>
+<a name="l624"><span class="ln">624  </span></a>    <span class="s2">try</span><span class="s1">:</span>
+<a name="l625"><span class="ln">625  </span></a>        <span class="s0"># We need a way to check how timeouts are handled in the tests. So we</span>
+<a name="l626"><span class="ln">626  </span></a>        <span class="s0"># have a secret variable that if set makes this method always test the</span>
+<a name="l627"><span class="ln">627  </span></a>        <span class="s0"># handling of a timeout.</span>
+<a name="l628"><span class="ln">628  </span></a>        <span class="s2">if </span><span class="s1">getattr(validate_email_deliverability</span><span class="s2">, </span><span class="s4">'TEST_CHECK_TIMEOUT'</span><span class="s2">, False</span><span class="s1">):</span>
+<a name="l629"><span class="ln">629  </span></a>            <span class="s2">raise </span><span class="s1">dns.exception.Timeout()</span>
+<a name="l630"><span class="ln">630  </span></a>
+<a name="l631"><span class="ln">631  </span></a>        <span class="s2">try</span><span class="s1">:</span>
+<a name="l632"><span class="ln">632  </span></a>            <span class="s0"># Try resolving for MX records.</span>
+<a name="l633"><span class="ln">633  </span></a>            <span class="s1">response = dns_resolver_resolve_shim(domain</span><span class="s2">, </span><span class="s4">&quot;MX&quot;</span><span class="s1">)</span>
+<a name="l634"><span class="ln">634  </span></a>
+<a name="l635"><span class="ln">635  </span></a>            <span class="s0"># For reporting, put them in priority order and remove the trailing dot in the qnames.</span>
+<a name="l636"><span class="ln">636  </span></a>            <span class="s1">mtas = sorted([(r.preference</span><span class="s2">, </span><span class="s1">str(r.exchange).rstrip(</span><span class="s4">'.'</span><span class="s1">)) </span><span class="s2">for </span><span class="s1">r </span><span class="s2">in </span><span class="s1">response])</span>
+<a name="l637"><span class="ln">637  </span></a>
+<a name="l638"><span class="ln">638  </span></a>            <span class="s0"># Remove &quot;null MX&quot; records from the list (their value is (0, &quot;.&quot;) but we've stripped</span>
+<a name="l639"><span class="ln">639  </span></a>            <span class="s0"># trailing dots, so the 'exchange' is just &quot;&quot;). If there was only a null MX record,</span>
+<a name="l640"><span class="ln">640  </span></a>            <span class="s0"># email is not deliverable.</span>
+<a name="l641"><span class="ln">641  </span></a>            <span class="s1">mtas = [(preference</span><span class="s2">, </span><span class="s1">exchange) </span><span class="s2">for </span><span class="s1">preference</span><span class="s2">, </span><span class="s1">exchange </span><span class="s2">in </span><span class="s1">mtas</span>
+<a name="l642"><span class="ln">642  </span></a>                    <span class="s2">if </span><span class="s1">exchange != </span><span class="s4">&quot;&quot;</span><span class="s1">]</span>
+<a name="l643"><span class="ln">643  </span></a>            <span class="s2">if </span><span class="s1">len(mtas) == </span><span class="s3">0</span><span class="s1">:</span>
+<a name="l644"><span class="ln">644  </span></a>                <span class="s2">raise </span><span class="s1">EmailUndeliverableError(</span><span class="s4">&quot;The domain name %s does not accept email.&quot; </span><span class="s1">% domain_i18n)</span>
+<a name="l645"><span class="ln">645  </span></a>
+<a name="l646"><span class="ln">646  </span></a>            <span class="s1">deliverability_info[</span><span class="s4">&quot;mx&quot;</span><span class="s1">] = mtas</span>
+<a name="l647"><span class="ln">647  </span></a>            <span class="s1">deliverability_info[</span><span class="s4">&quot;mx_fallback_type&quot;</span><span class="s1">] = </span><span class="s2">None</span>
+<a name="l648"><span class="ln">648  </span></a>
+<a name="l649"><span class="ln">649  </span></a>        <span class="s2">except </span><span class="s1">(dns.resolver.NoNameservers</span><span class="s2">, </span><span class="s1">dns.resolver.NXDOMAIN</span><span class="s2">, </span><span class="s1">dns.resolver.NoAnswer):</span>
+<a name="l650"><span class="ln">650  </span></a>
+<a name="l651"><span class="ln">651  </span></a>            <span class="s0"># If there was no MX record, fall back to an A record.</span>
+<a name="l652"><span class="ln">652  </span></a>            <span class="s2">try</span><span class="s1">:</span>
+<a name="l653"><span class="ln">653  </span></a>                <span class="s1">response = dns_resolver_resolve_shim(domain</span><span class="s2">, </span><span class="s4">&quot;A&quot;</span><span class="s1">)</span>
+<a name="l654"><span class="ln">654  </span></a>                <span class="s1">deliverability_info[</span><span class="s4">&quot;mx&quot;</span><span class="s1">] = [(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">str(r)) </span><span class="s2">for </span><span class="s1">r </span><span class="s2">in </span><span class="s1">response]</span>
+<a name="l655"><span class="ln">655  </span></a>                <span class="s1">deliverability_info[</span><span class="s4">&quot;mx_fallback_type&quot;</span><span class="s1">] = </span><span class="s4">&quot;A&quot;</span>
+<a name="l656"><span class="ln">656  </span></a>            <span class="s2">except </span><span class="s1">(dns.resolver.NoNameservers</span><span class="s2">, </span><span class="s1">dns.resolver.NXDOMAIN</span><span class="s2">, </span><span class="s1">dns.resolver.NoAnswer):</span>
+<a name="l657"><span class="ln">657  </span></a>
+<a name="l658"><span class="ln">658  </span></a>                <span class="s0"># If there was no A record, fall back to an AAAA record.</span>
+<a name="l659"><span class="ln">659  </span></a>                <span class="s2">try</span><span class="s1">:</span>
+<a name="l660"><span class="ln">660  </span></a>                    <span class="s1">response = dns_resolver_resolve_shim(domain</span><span class="s2">, </span><span class="s4">&quot;AAAA&quot;</span><span class="s1">)</span>
+<a name="l661"><span class="ln">661  </span></a>                    <span class="s1">deliverability_info[</span><span class="s4">&quot;mx&quot;</span><span class="s1">] = [(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">str(r)) </span><span class="s2">for </span><span class="s1">r </span><span class="s2">in </span><span class="s1">response]</span>
+<a name="l662"><span class="ln">662  </span></a>                    <span class="s1">deliverability_info[</span><span class="s4">&quot;mx_fallback_type&quot;</span><span class="s1">] = </span><span class="s4">&quot;AAAA&quot;</span>
+<a name="l663"><span class="ln">663  </span></a>                <span class="s2">except </span><span class="s1">(dns.resolver.NoNameservers</span><span class="s2">, </span><span class="s1">dns.resolver.NXDOMAIN</span><span class="s2">, </span><span class="s1">dns.resolver.NoAnswer):</span>
+<a name="l664"><span class="ln">664  </span></a>
+<a name="l665"><span class="ln">665  </span></a>                    <span class="s0"># If there was no MX, A, or AAAA record, then mail to</span>
+<a name="l666"><span class="ln">666  </span></a>                    <span class="s0"># this domain is not deliverable.</span>
+<a name="l667"><span class="ln">667  </span></a>                    <span class="s2">raise </span><span class="s1">EmailUndeliverableError(</span><span class="s4">&quot;The domain name %s does not exist.&quot; </span><span class="s1">% domain_i18n)</span>
+<a name="l668"><span class="ln">668  </span></a>
+<a name="l669"><span class="ln">669  </span></a>        <span class="s2">try</span><span class="s1">:</span>
+<a name="l670"><span class="ln">670  </span></a>            <span class="s0"># Check for a SPF reject all (&quot;v=spf1 -all&quot;) record which indicates</span>
+<a name="l671"><span class="ln">671  </span></a>            <span class="s0"># no emails are sent from this domain, which like a NULL MX record</span>
+<a name="l672"><span class="ln">672  </span></a>            <span class="s0"># would indicate that the domain is not used for email.</span>
+<a name="l673"><span class="ln">673  </span></a>            <span class="s1">response = dns_resolver_resolve_shim(domain</span><span class="s2">, </span><span class="s4">&quot;TXT&quot;</span><span class="s1">)</span>
+<a name="l674"><span class="ln">674  </span></a>            <span class="s2">for </span><span class="s1">rec </span><span class="s2">in </span><span class="s1">response:</span>
+<a name="l675"><span class="ln">675  </span></a>                <span class="s1">value = </span><span class="s6">b&quot;&quot;</span><span class="s1">.join(rec.strings)</span>
+<a name="l676"><span class="ln">676  </span></a>                <span class="s2">if </span><span class="s1">value.startswith(</span><span class="s6">b&quot;v=spf1 &quot;</span><span class="s1">):</span>
+<a name="l677"><span class="ln">677  </span></a>                    <span class="s1">deliverability_info[</span><span class="s4">&quot;spf&quot;</span><span class="s1">] = value.decode(</span><span class="s4">&quot;ascii&quot;</span><span class="s2">, </span><span class="s1">errors=</span><span class="s4">'replace'</span><span class="s1">)</span>
+<a name="l678"><span class="ln">678  </span></a>                    <span class="s2">if </span><span class="s1">value == </span><span class="s6">b&quot;v=spf1 -all&quot;</span><span class="s1">:</span>
+<a name="l679"><span class="ln">679  </span></a>                        <span class="s2">raise </span><span class="s1">EmailUndeliverableError(</span><span class="s4">&quot;The domain name %s does not send email.&quot; </span><span class="s1">% domain_i18n)</span>
+<a name="l680"><span class="ln">680  </span></a>        <span class="s2">except </span><span class="s1">dns.resolver.NoAnswer:</span>
+<a name="l681"><span class="ln">681  </span></a>            <span class="s0"># No TXT records means there is no SPF policy, so we cannot take any action.</span>
+<a name="l682"><span class="ln">682  </span></a>            <span class="s2">pass</span>
+<a name="l683"><span class="ln">683  </span></a>        <span class="s2">except </span><span class="s1">(dns.resolver.NoNameservers</span><span class="s2">, </span><span class="s1">dns.resolver.NXDOMAIN):</span>
+<a name="l684"><span class="ln">684  </span></a>            <span class="s0"># Failure to resolve at this step will be ignored.</span>
+<a name="l685"><span class="ln">685  </span></a>            <span class="s2">pass</span>
+<a name="l686"><span class="ln">686  </span></a>
+<a name="l687"><span class="ln">687  </span></a>    <span class="s2">except </span><span class="s1">dns.exception.Timeout:</span>
+<a name="l688"><span class="ln">688  </span></a>        <span class="s0"># A timeout could occur for various reasons, so don't treat it as a failure.</span>
+<a name="l689"><span class="ln">689  </span></a>        <span class="s2">return </span><span class="s1">{</span>
+<a name="l690"><span class="ln">690  </span></a>            <span class="s4">&quot;unknown-deliverability&quot;</span><span class="s1">: </span><span class="s4">&quot;timeout&quot;</span><span class="s2">,</span>
+<a name="l691"><span class="ln">691  </span></a>        <span class="s1">}</span>
+<a name="l692"><span class="ln">692  </span></a>
+<a name="l693"><span class="ln">693  </span></a>    <span class="s2">except </span><span class="s1">EmailUndeliverableError:</span>
+<a name="l694"><span class="ln">694  </span></a>        <span class="s0"># Don't let these get clobbered by the wider except block below.</span>
+<a name="l695"><span class="ln">695  </span></a>        <span class="s2">raise</span>
+<a name="l696"><span class="ln">696  </span></a>
+<a name="l697"><span class="ln">697  </span></a>    <span class="s2">except </span><span class="s1">Exception </span><span class="s2">as </span><span class="s1">e:</span>
+<a name="l698"><span class="ln">698  </span></a>        <span class="s0"># Unhandled conditions should not propagate.</span>
+<a name="l699"><span class="ln">699  </span></a>        <span class="s2">raise </span><span class="s1">EmailUndeliverableError(</span>
+<a name="l700"><span class="ln">700  </span></a>            <span class="s4">&quot;There was an error while checking if the domain name in the email address is deliverable: &quot; </span><span class="s1">+ str(e)</span>
+<a name="l701"><span class="ln">701  </span></a>        <span class="s1">)</span>
+<a name="l702"><span class="ln">702  </span></a>
+<a name="l703"><span class="ln">703  </span></a>    <span class="s2">return </span><span class="s1">deliverability_info</span>
+<a name="l704"><span class="ln">704  </span></a>
+<a name="l705"><span class="ln">705  </span></a>
+<a name="l706"><span class="ln">706  </span></a><span class="s2">def </span><span class="s1">main():</span>
+<a name="l707"><span class="ln">707  </span></a>    <span class="s2">import </span><span class="s1">json</span>
+<a name="l708"><span class="ln">708  </span></a>
+<a name="l709"><span class="ln">709  </span></a>    <span class="s2">def </span><span class="s1">__utf8_input_shim(input_str):</span>
+<a name="l710"><span class="ln">710  </span></a>        <span class="s2">if </span><span class="s1">sys.version_info &lt; (</span><span class="s3">3</span><span class="s2">,</span><span class="s1">):</span>
+<a name="l711"><span class="ln">711  </span></a>            <span class="s2">return </span><span class="s1">input_str.decode(</span><span class="s4">&quot;utf-8&quot;</span><span class="s1">)</span>
+<a name="l712"><span class="ln">712  </span></a>        <span class="s2">return </span><span class="s1">input_str</span>
+<a name="l713"><span class="ln">713  </span></a>
+<a name="l714"><span class="ln">714  </span></a>    <span class="s2">def </span><span class="s1">__utf8_output_shim(output_str):</span>
+<a name="l715"><span class="ln">715  </span></a>        <span class="s2">if </span><span class="s1">sys.version_info &lt; (</span><span class="s3">3</span><span class="s2">,</span><span class="s1">):</span>
+<a name="l716"><span class="ln">716  </span></a>            <span class="s2">return </span><span class="s1">unicode_class(output_str).encode(</span><span class="s4">&quot;utf-8&quot;</span><span class="s1">)</span>
+<a name="l717"><span class="ln">717  </span></a>        <span class="s2">return </span><span class="s1">output_str</span>
+<a name="l718"><span class="ln">718  </span></a>
+<a name="l719"><span class="ln">719  </span></a>    <span class="s2">if </span><span class="s1">len(sys.argv) == </span><span class="s3">1</span><span class="s1">:</span>
+<a name="l720"><span class="ln">720  </span></a>        <span class="s0"># Validate the email addresses pased line-by-line on STDIN.</span>
+<a name="l721"><span class="ln">721  </span></a>        <span class="s1">dns_resolver = caching_resolver()</span>
+<a name="l722"><span class="ln">722  </span></a>        <span class="s2">for </span><span class="s1">line </span><span class="s2">in </span><span class="s1">sys.stdin:</span>
+<a name="l723"><span class="ln">723  </span></a>            <span class="s1">email = __utf8_input_shim(line.strip())</span>
+<a name="l724"><span class="ln">724  </span></a>            <span class="s2">try</span><span class="s1">:</span>
+<a name="l725"><span class="ln">725  </span></a>                <span class="s1">validate_email(email</span><span class="s2">, </span><span class="s1">dns_resolver=dns_resolver)</span>
+<a name="l726"><span class="ln">726  </span></a>            <span class="s2">except </span><span class="s1">EmailNotValidError </span><span class="s2">as </span><span class="s1">e:</span>
+<a name="l727"><span class="ln">727  </span></a>                <span class="s1">print(__utf8_output_shim(</span><span class="s4">&quot;{} {}&quot;</span><span class="s1">.format(email</span><span class="s2">, </span><span class="s1">e)))</span>
+<a name="l728"><span class="ln">728  </span></a>    <span class="s2">else</span><span class="s1">:</span>
+<a name="l729"><span class="ln">729  </span></a>        <span class="s0"># Validate the email address passed on the command line.</span>
+<a name="l730"><span class="ln">730  </span></a>        <span class="s1">email = __utf8_input_shim(sys.argv[</span><span class="s3">1</span><span class="s1">])</span>
+<a name="l731"><span class="ln">731  </span></a>        <span class="s2">try</span><span class="s1">:</span>
+<a name="l732"><span class="ln">732  </span></a>            <span class="s1">result = validate_email(email)</span>
+<a name="l733"><span class="ln">733  </span></a>            <span class="s1">print(json.dumps(result.as_dict()</span><span class="s2">, </span><span class="s1">indent=</span><span class="s3">2</span><span class="s2">, </span><span class="s1">sort_keys=</span><span class="s2">True, </span><span class="s1">ensure_ascii=</span><span class="s2">False</span><span class="s1">))</span>
+<a name="l734"><span class="ln">734  </span></a>        <span class="s2">except </span><span class="s1">EmailNotValidError </span><span class="s2">as </span><span class="s1">e:</span>
+<a name="l735"><span class="ln">735  </span></a>            <span class="s1">print(__utf8_output_shim(e))</span>
+<a name="l736"><span class="ln">736  </span></a>
+<a name="l737"><span class="ln">737  </span></a>
+<a name="l738"><span class="ln">738  </span></a><span class="s2">if </span><span class="s1">__name__ == </span><span class="s4">&quot;__main__&quot;</span><span class="s1">:</span>
+<a name="l739"><span class="ln">739  </span></a>    <span class="s1">main()</span>
+<a name="l740"><span class="ln">740  </span></a></pre>
+</body>
+</html>

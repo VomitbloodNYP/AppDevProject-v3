@@ -1,0 +1,138 @@
+<html>
+<head>
+<title>rdataclass.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #808080;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #629755; font-style: italic;}
+.s3 { color: #cc7832;}
+.s4 { color: #6897bb;}
+.s5 { color: #6a8759;}
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+rdataclass.py</font>
+</center></td></tr></table>
+<pre><a name="l1"><span class="ln">1    </span></a><span class="s0"># Copyright (C) Dnspython Contributors, see LICENSE for text of ISC license</span>
+<a name="l2"><span class="ln">2    </span></a>
+<a name="l3"><span class="ln">3    </span></a><span class="s0"># Copyright (C) 2001-2017 Nominum, Inc.</span>
+<a name="l4"><span class="ln">4    </span></a><span class="s0">#</span>
+<a name="l5"><span class="ln">5    </span></a><span class="s0"># Permission to use, copy, modify, and distribute this software and its</span>
+<a name="l6"><span class="ln">6    </span></a><span class="s0"># documentation for any purpose with or without fee is hereby granted,</span>
+<a name="l7"><span class="ln">7    </span></a><span class="s0"># provided that the above copyright notice and this permission notice</span>
+<a name="l8"><span class="ln">8    </span></a><span class="s0"># appear in all copies.</span>
+<a name="l9"><span class="ln">9    </span></a><span class="s0">#</span>
+<a name="l10"><span class="ln">10   </span></a><span class="s0"># THE SOFTWARE IS PROVIDED &quot;AS IS&quot; AND NOMINUM DISCLAIMS ALL WARRANTIES</span>
+<a name="l11"><span class="ln">11   </span></a><span class="s0"># WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF</span>
+<a name="l12"><span class="ln">12   </span></a><span class="s0"># MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL NOMINUM BE LIABLE FOR</span>
+<a name="l13"><span class="ln">13   </span></a><span class="s0"># ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES</span>
+<a name="l14"><span class="ln">14   </span></a><span class="s0"># WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN</span>
+<a name="l15"><span class="ln">15   </span></a><span class="s0"># ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT</span>
+<a name="l16"><span class="ln">16   </span></a><span class="s0"># OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.</span>
+<a name="l17"><span class="ln">17   </span></a>
+<a name="l18"><span class="ln">18   </span></a><span class="s2">&quot;&quot;&quot;DNS Rdata Classes.&quot;&quot;&quot;</span>
+<a name="l19"><span class="ln">19   </span></a>
+<a name="l20"><span class="ln">20   </span></a><span class="s3">import </span><span class="s1">dns.enum</span>
+<a name="l21"><span class="ln">21   </span></a><span class="s3">import </span><span class="s1">dns.exception</span>
+<a name="l22"><span class="ln">22   </span></a>
+<a name="l23"><span class="ln">23   </span></a><span class="s3">class </span><span class="s1">RdataClass(dns.enum.IntEnum):</span>
+<a name="l24"><span class="ln">24   </span></a>    <span class="s2">&quot;&quot;&quot;DNS Rdata Class&quot;&quot;&quot;</span>
+<a name="l25"><span class="ln">25   </span></a>    <span class="s1">RESERVED0 = </span><span class="s4">0</span>
+<a name="l26"><span class="ln">26   </span></a>    <span class="s1">IN = </span><span class="s4">1</span>
+<a name="l27"><span class="ln">27   </span></a>    <span class="s1">INTERNET = IN</span>
+<a name="l28"><span class="ln">28   </span></a>    <span class="s1">CH = </span><span class="s4">3</span>
+<a name="l29"><span class="ln">29   </span></a>    <span class="s1">CHAOS = CH</span>
+<a name="l30"><span class="ln">30   </span></a>    <span class="s1">HS = </span><span class="s4">4</span>
+<a name="l31"><span class="ln">31   </span></a>    <span class="s1">HESIOD = HS</span>
+<a name="l32"><span class="ln">32   </span></a>    <span class="s1">NONE = </span><span class="s4">254</span>
+<a name="l33"><span class="ln">33   </span></a>    <span class="s1">ANY = </span><span class="s4">255</span>
+<a name="l34"><span class="ln">34   </span></a>
+<a name="l35"><span class="ln">35   </span></a>    <span class="s1">@classmethod</span>
+<a name="l36"><span class="ln">36   </span></a>    <span class="s3">def </span><span class="s1">_maximum(cls):</span>
+<a name="l37"><span class="ln">37   </span></a>        <span class="s3">return </span><span class="s4">65535</span>
+<a name="l38"><span class="ln">38   </span></a>
+<a name="l39"><span class="ln">39   </span></a>    <span class="s1">@classmethod</span>
+<a name="l40"><span class="ln">40   </span></a>    <span class="s3">def </span><span class="s1">_short_name(cls):</span>
+<a name="l41"><span class="ln">41   </span></a>        <span class="s3">return </span><span class="s5">&quot;class&quot;</span>
+<a name="l42"><span class="ln">42   </span></a>
+<a name="l43"><span class="ln">43   </span></a>    <span class="s1">@classmethod</span>
+<a name="l44"><span class="ln">44   </span></a>    <span class="s3">def </span><span class="s1">_prefix(cls):</span>
+<a name="l45"><span class="ln">45   </span></a>        <span class="s3">return </span><span class="s5">&quot;CLASS&quot;</span>
+<a name="l46"><span class="ln">46   </span></a>
+<a name="l47"><span class="ln">47   </span></a>    <span class="s1">@classmethod</span>
+<a name="l48"><span class="ln">48   </span></a>    <span class="s3">def </span><span class="s1">_unknown_exception_class(cls):</span>
+<a name="l49"><span class="ln">49   </span></a>        <span class="s3">return </span><span class="s1">UnknownRdataclass</span>
+<a name="l50"><span class="ln">50   </span></a>
+<a name="l51"><span class="ln">51   </span></a>
+<a name="l52"><span class="ln">52   </span></a><span class="s1">_metaclasses = {RdataClass.NONE</span><span class="s3">, </span><span class="s1">RdataClass.ANY}</span>
+<a name="l53"><span class="ln">53   </span></a>
+<a name="l54"><span class="ln">54   </span></a>
+<a name="l55"><span class="ln">55   </span></a><span class="s3">class </span><span class="s1">UnknownRdataclass(dns.exception.DNSException):</span>
+<a name="l56"><span class="ln">56   </span></a>    <span class="s2">&quot;&quot;&quot;A DNS class is unknown.&quot;&quot;&quot;</span>
+<a name="l57"><span class="ln">57   </span></a>
+<a name="l58"><span class="ln">58   </span></a>
+<a name="l59"><span class="ln">59   </span></a><span class="s3">def </span><span class="s1">from_text(text):</span>
+<a name="l60"><span class="ln">60   </span></a>    <span class="s2">&quot;&quot;&quot;Convert text into a DNS rdata class value. 
+<a name="l61"><span class="ln">61   </span></a> 
+<a name="l62"><span class="ln">62   </span></a>    The input text can be a defined DNS RR class mnemonic or 
+<a name="l63"><span class="ln">63   </span></a>    instance of the DNS generic class syntax. 
+<a name="l64"><span class="ln">64   </span></a> 
+<a name="l65"><span class="ln">65   </span></a>    For example, &quot;IN&quot; and &quot;CLASS1&quot; will both result in a value of 1. 
+<a name="l66"><span class="ln">66   </span></a> 
+<a name="l67"><span class="ln">67   </span></a>    Raises ``dns.rdatatype.UnknownRdataclass`` if the class is unknown. 
+<a name="l68"><span class="ln">68   </span></a> 
+<a name="l69"><span class="ln">69   </span></a>    Raises ``ValueError`` if the rdata class value is not &gt;= 0 and &lt;= 65535. 
+<a name="l70"><span class="ln">70   </span></a> 
+<a name="l71"><span class="ln">71   </span></a>    Returns an ``int``. 
+<a name="l72"><span class="ln">72   </span></a>    &quot;&quot;&quot;</span>
+<a name="l73"><span class="ln">73   </span></a>
+<a name="l74"><span class="ln">74   </span></a>    <span class="s3">return </span><span class="s1">RdataClass.from_text(text)</span>
+<a name="l75"><span class="ln">75   </span></a>
+<a name="l76"><span class="ln">76   </span></a>
+<a name="l77"><span class="ln">77   </span></a><span class="s3">def </span><span class="s1">to_text(value):</span>
+<a name="l78"><span class="ln">78   </span></a>    <span class="s2">&quot;&quot;&quot;Convert a DNS rdata class value to text. 
+<a name="l79"><span class="ln">79   </span></a> 
+<a name="l80"><span class="ln">80   </span></a>    If the value has a known mnemonic, it will be used, otherwise the 
+<a name="l81"><span class="ln">81   </span></a>    DNS generic class syntax will be used. 
+<a name="l82"><span class="ln">82   </span></a> 
+<a name="l83"><span class="ln">83   </span></a>    Raises ``ValueError`` if the rdata class value is not &gt;= 0 and &lt;= 65535. 
+<a name="l84"><span class="ln">84   </span></a> 
+<a name="l85"><span class="ln">85   </span></a>    Returns a ``str``. 
+<a name="l86"><span class="ln">86   </span></a>    &quot;&quot;&quot;</span>
+<a name="l87"><span class="ln">87   </span></a>
+<a name="l88"><span class="ln">88   </span></a>    <span class="s3">return </span><span class="s1">RdataClass.to_text(value)</span>
+<a name="l89"><span class="ln">89   </span></a>
+<a name="l90"><span class="ln">90   </span></a>
+<a name="l91"><span class="ln">91   </span></a><span class="s3">def </span><span class="s1">is_metaclass(rdclass):</span>
+<a name="l92"><span class="ln">92   </span></a>    <span class="s2">&quot;&quot;&quot;True if the specified class is a metaclass. 
+<a name="l93"><span class="ln">93   </span></a> 
+<a name="l94"><span class="ln">94   </span></a>    The currently defined metaclasses are ANY and NONE. 
+<a name="l95"><span class="ln">95   </span></a> 
+<a name="l96"><span class="ln">96   </span></a>    *rdclass* is an ``int``. 
+<a name="l97"><span class="ln">97   </span></a>    &quot;&quot;&quot;</span>
+<a name="l98"><span class="ln">98   </span></a>
+<a name="l99"><span class="ln">99   </span></a>    <span class="s3">if </span><span class="s1">rdclass </span><span class="s3">in </span><span class="s1">_metaclasses:</span>
+<a name="l100"><span class="ln">100  </span></a>        <span class="s3">return True</span>
+<a name="l101"><span class="ln">101  </span></a>    <span class="s3">return False</span>
+<a name="l102"><span class="ln">102  </span></a>
+<a name="l103"><span class="ln">103  </span></a><span class="s0">### BEGIN generated RdataClass constants</span>
+<a name="l104"><span class="ln">104  </span></a>
+<a name="l105"><span class="ln">105  </span></a><span class="s1">RESERVED0 = RdataClass.RESERVED0</span>
+<a name="l106"><span class="ln">106  </span></a><span class="s1">IN = RdataClass.IN</span>
+<a name="l107"><span class="ln">107  </span></a><span class="s1">INTERNET = RdataClass.INTERNET</span>
+<a name="l108"><span class="ln">108  </span></a><span class="s1">CH = RdataClass.CH</span>
+<a name="l109"><span class="ln">109  </span></a><span class="s1">CHAOS = RdataClass.CHAOS</span>
+<a name="l110"><span class="ln">110  </span></a><span class="s1">HS = RdataClass.HS</span>
+<a name="l111"><span class="ln">111  </span></a><span class="s1">HESIOD = RdataClass.HESIOD</span>
+<a name="l112"><span class="ln">112  </span></a><span class="s1">NONE = RdataClass.NONE</span>
+<a name="l113"><span class="ln">113  </span></a><span class="s1">ANY = RdataClass.ANY</span>
+<a name="l114"><span class="ln">114  </span></a>
+<a name="l115"><span class="ln">115  </span></a><span class="s0">### END generated RdataClass constants</span>
+<a name="l116"><span class="ln">116  </span></a></pre>
+</body>
+</html>

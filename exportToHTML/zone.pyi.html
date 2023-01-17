@@ -1,0 +1,74 @@
+<html>
+<head>
+<title>zone.pyi</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+zone.pyi</font>
+</center></td></tr></table>
+<pre><a name="l1"><span class="ln">1    </span></a><span class="s0">from </span><span class="s1">typing </span><span class="s0">import </span><span class="s1">Generator</span><span class="s0">, </span><span class="s1">Optional</span><span class="s0">, </span><span class="s1">Union</span><span class="s0">, </span><span class="s1">Tuple</span><span class="s0">, </span><span class="s1">Iterable</span><span class="s0">, </span><span class="s1">Callable</span><span class="s0">, </span><span class="s1">Any</span><span class="s0">, </span><span class="s1">Iterator</span><span class="s0">, </span><span class="s1">TextIO</span><span class="s0">, </span><span class="s1">BinaryIO</span><span class="s0">, </span><span class="s1">Dict</span>
+<a name="l2"><span class="ln">2    </span></a><span class="s0">from </span><span class="s1">. </span><span class="s0">import </span><span class="s1">rdata</span><span class="s0">, </span><span class="s1">zone</span><span class="s0">, </span><span class="s1">rdataclass</span><span class="s0">, </span><span class="s1">name</span><span class="s0">, </span><span class="s1">rdataclass</span><span class="s0">, </span><span class="s1">message</span><span class="s0">, </span><span class="s1">rdatatype</span><span class="s0">, </span><span class="s1">exception</span><span class="s0">, </span><span class="s1">node</span><span class="s0">, </span><span class="s1">rdataset</span><span class="s0">, </span><span class="s1">rrset</span><span class="s0">, </span><span class="s1">rdatatype</span>
+<a name="l3"><span class="ln">3    </span></a>
+<a name="l4"><span class="ln">4    </span></a><span class="s0">class </span><span class="s1">BadZone(exception.DNSException): ...</span>
+<a name="l5"><span class="ln">5    </span></a><span class="s0">class </span><span class="s1">NoSOA(BadZone): ...</span>
+<a name="l6"><span class="ln">6    </span></a><span class="s0">class </span><span class="s1">NoNS(BadZone): ...</span>
+<a name="l7"><span class="ln">7    </span></a><span class="s0">class </span><span class="s1">UnknownOrigin(BadZone): ...</span>
+<a name="l8"><span class="ln">8    </span></a>
+<a name="l9"><span class="ln">9    </span></a><span class="s0">class </span><span class="s1">Zone:</span>
+<a name="l10"><span class="ln">10   </span></a>    <span class="s0">def </span><span class="s1">__getitem__(self</span><span class="s0">, </span><span class="s1">key : str) -&gt; node.Node:</span>
+<a name="l11"><span class="ln">11   </span></a>        <span class="s1">...</span>
+<a name="l12"><span class="ln">12   </span></a>    <span class="s0">def </span><span class="s1">__init__(self</span><span class="s0">, </span><span class="s1">origin : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">rdclass : int = rdataclass.IN</span><span class="s0">, </span><span class="s1">relativize : bool = </span><span class="s0">True</span><span class="s1">) -&gt; </span><span class="s0">None</span><span class="s1">:</span>
+<a name="l13"><span class="ln">13   </span></a>        <span class="s1">self.nodes : Dict[str</span><span class="s0">,</span><span class="s1">node.Node]</span>
+<a name="l14"><span class="ln">14   </span></a>        <span class="s1">self.origin = origin</span>
+<a name="l15"><span class="ln">15   </span></a>    <span class="s0">def </span><span class="s1">values(self):</span>
+<a name="l16"><span class="ln">16   </span></a>        <span class="s0">return </span><span class="s1">self.nodes.values()</span>
+<a name="l17"><span class="ln">17   </span></a>    <span class="s0">def </span><span class="s1">iterate_rdatas(self</span><span class="s0">, </span><span class="s1">rdtype : Union[int</span><span class="s0">,</span><span class="s1">str] = rdatatype.ANY</span><span class="s0">, </span><span class="s1">covers : Union[int</span><span class="s0">,</span><span class="s1">str] = </span><span class="s0">None</span><span class="s1">) -&gt; Iterable[Tuple[name.Name</span><span class="s0">, </span><span class="s1">int</span><span class="s0">, </span><span class="s1">rdata.Rdata]]:</span>
+<a name="l18"><span class="ln">18   </span></a>        <span class="s1">...</span>
+<a name="l19"><span class="ln">19   </span></a>    <span class="s0">def </span><span class="s1">__iter__(self) -&gt; Iterator[str]:</span>
+<a name="l20"><span class="ln">20   </span></a>        <span class="s1">...</span>
+<a name="l21"><span class="ln">21   </span></a>    <span class="s0">def </span><span class="s1">get_node(self</span><span class="s0">, </span><span class="s1">name : Union[name.Name</span><span class="s0">,</span><span class="s1">str]</span><span class="s0">, </span><span class="s1">create=</span><span class="s0">False</span><span class="s1">) -&gt; Optional[node.Node]:</span>
+<a name="l22"><span class="ln">22   </span></a>        <span class="s1">...</span>
+<a name="l23"><span class="ln">23   </span></a>    <span class="s0">def </span><span class="s1">find_rrset(self</span><span class="s0">, </span><span class="s1">name : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">rdtype : Union[int</span><span class="s0">,</span><span class="s1">str]</span><span class="s0">, </span><span class="s1">covers=rdatatype.NONE) -&gt; rrset.RRset:</span>
+<a name="l24"><span class="ln">24   </span></a>        <span class="s1">...</span>
+<a name="l25"><span class="ln">25   </span></a>    <span class="s0">def </span><span class="s1">find_rdataset(self</span><span class="s0">, </span><span class="s1">name : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">rdtype : Union[str</span><span class="s0">,</span><span class="s1">int]</span><span class="s0">, </span><span class="s1">covers=rdatatype.NONE</span><span class="s0">,</span>
+<a name="l26"><span class="ln">26   </span></a>                      <span class="s1">create=</span><span class="s0">False</span><span class="s1">) -&gt; rdataset.Rdataset:</span>
+<a name="l27"><span class="ln">27   </span></a>        <span class="s1">...</span>
+<a name="l28"><span class="ln">28   </span></a>    <span class="s0">def </span><span class="s1">get_rdataset(self</span><span class="s0">, </span><span class="s1">name : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">rdtype : Union[str</span><span class="s0">,</span><span class="s1">int]</span><span class="s0">, </span><span class="s1">covers=rdatatype.NONE</span><span class="s0">, </span><span class="s1">create=</span><span class="s0">False</span><span class="s1">) -&gt; Optional[rdataset.Rdataset]:</span>
+<a name="l29"><span class="ln">29   </span></a>        <span class="s1">...</span>
+<a name="l30"><span class="ln">30   </span></a>    <span class="s0">def </span><span class="s1">get_rrset(self</span><span class="s0">, </span><span class="s1">name : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">rdtype : Union[str</span><span class="s0">,</span><span class="s1">int]</span><span class="s0">, </span><span class="s1">covers=rdatatype.NONE) -&gt; Optional[rrset.RRset]:</span>
+<a name="l31"><span class="ln">31   </span></a>        <span class="s1">...</span>
+<a name="l32"><span class="ln">32   </span></a>    <span class="s0">def </span><span class="s1">replace_rdataset(self</span><span class="s0">, </span><span class="s1">name : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">replacement : rdataset.Rdataset) -&gt; </span><span class="s0">None</span><span class="s1">:</span>
+<a name="l33"><span class="ln">33   </span></a>        <span class="s1">...</span>
+<a name="l34"><span class="ln">34   </span></a>    <span class="s0">def </span><span class="s1">delete_rdataset(self</span><span class="s0">, </span><span class="s1">name : Union[str</span><span class="s0">,</span><span class="s1">name.Name]</span><span class="s0">, </span><span class="s1">rdtype : Union[str</span><span class="s0">,</span><span class="s1">int]</span><span class="s0">, </span><span class="s1">covers=rdatatype.NONE) -&gt; </span><span class="s0">None</span><span class="s1">:</span>
+<a name="l35"><span class="ln">35   </span></a>        <span class="s1">...</span>
+<a name="l36"><span class="ln">36   </span></a>    <span class="s0">def </span><span class="s1">iterate_rdatasets(self</span><span class="s0">, </span><span class="s1">rdtype : Union[str</span><span class="s0">,</span><span class="s1">int] =rdatatype.ANY</span><span class="s0">,</span>
+<a name="l37"><span class="ln">37   </span></a>                          <span class="s1">covers : Union[str</span><span class="s0">,</span><span class="s1">int] =rdatatype.NONE):</span>
+<a name="l38"><span class="ln">38   </span></a>        <span class="s1">...</span>
+<a name="l39"><span class="ln">39   </span></a>    <span class="s0">def </span><span class="s1">to_file(self</span><span class="s0">, </span><span class="s1">f : Union[TextIO</span><span class="s0">, </span><span class="s1">BinaryIO</span><span class="s0">, </span><span class="s1">str]</span><span class="s0">, </span><span class="s1">sorted=</span><span class="s0">True, </span><span class="s1">relativize=</span><span class="s0">True, </span><span class="s1">nl : Optional[bytes] = </span><span class="s0">None</span><span class="s1">):</span>
+<a name="l40"><span class="ln">40   </span></a>        <span class="s1">...</span>
+<a name="l41"><span class="ln">41   </span></a>    <span class="s0">def </span><span class="s1">to_text(self</span><span class="s0">, </span><span class="s1">sorted=</span><span class="s0">True, </span><span class="s1">relativize=</span><span class="s0">True, </span><span class="s1">nl : Optional[str] = </span><span class="s0">None</span><span class="s1">) -&gt; str:</span>
+<a name="l42"><span class="ln">42   </span></a>        <span class="s1">...</span>
+<a name="l43"><span class="ln">43   </span></a>
+<a name="l44"><span class="ln">44   </span></a><span class="s0">def </span><span class="s1">from_xfr(xfr : Generator[Any</span><span class="s0">,</span><span class="s1">Any</span><span class="s0">,</span><span class="s1">message.Message]</span><span class="s0">, </span><span class="s1">zone_factory : Callable[...</span><span class="s0">, </span><span class="s1">zone.Zone] = zone.Zone</span><span class="s0">, </span><span class="s1">relativize=</span><span class="s0">True, </span><span class="s1">check_origin=</span><span class="s0">True</span><span class="s1">):</span>
+<a name="l45"><span class="ln">45   </span></a>    <span class="s1">...</span>
+<a name="l46"><span class="ln">46   </span></a>
+<a name="l47"><span class="ln">47   </span></a><span class="s0">def </span><span class="s1">from_text(text : str</span><span class="s0">, </span><span class="s1">origin : Optional[Union[str</span><span class="s0">,</span><span class="s1">name.Name]] = </span><span class="s0">None, </span><span class="s1">rdclass : int = rdataclass.IN</span><span class="s0">,</span>
+<a name="l48"><span class="ln">48   </span></a>              <span class="s1">relativize=</span><span class="s0">True, </span><span class="s1">zone_factory : Callable[...</span><span class="s0">,</span><span class="s1">zone.Zone] = zone.Zone</span><span class="s0">, </span><span class="s1">filename : Optional[str] = </span><span class="s0">None,</span>
+<a name="l49"><span class="ln">49   </span></a>              <span class="s1">allow_include=</span><span class="s0">False, </span><span class="s1">check_origin=</span><span class="s0">True</span><span class="s1">) -&gt; zone.Zone:</span>
+<a name="l50"><span class="ln">50   </span></a>    <span class="s1">...</span>
+<a name="l51"><span class="ln">51   </span></a>
+<a name="l52"><span class="ln">52   </span></a><span class="s0">def </span><span class="s1">from_file(f</span><span class="s0">, </span><span class="s1">origin : Optional[Union[str</span><span class="s0">,</span><span class="s1">name.Name]] = </span><span class="s0">None, </span><span class="s1">rdclass=rdataclass.IN</span><span class="s0">,</span>
+<a name="l53"><span class="ln">53   </span></a>              <span class="s1">relativize=</span><span class="s0">True, </span><span class="s1">zone_factory : Callable[...</span><span class="s0">, </span><span class="s1">zone.Zone] = Zone</span><span class="s0">, </span><span class="s1">filename : Optional[str] = </span><span class="s0">None,</span>
+<a name="l54"><span class="ln">54   </span></a>              <span class="s1">allow_include=</span><span class="s0">True, </span><span class="s1">check_origin=</span><span class="s0">True</span><span class="s1">) -&gt; zone.Zone:</span>
+<a name="l55"><span class="ln">55   </span></a>    <span class="s1">...</span>
+<a name="l56"><span class="ln">56   </span></a></pre>
+</body>
+</html>

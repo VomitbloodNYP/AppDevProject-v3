@@ -1,0 +1,114 @@
+<html>
+<head>
+<title>session.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #629755; font-style: italic;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #cc7832;}
+.s3 { color: #6a8759;}
+.s4 { color: #6897bb;}
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+session.py</font>
+</center></td></tr></table>
+<pre><a name="l1"><span class="ln">1    </span></a><span class="s0">&quot;&quot;&quot; 
+<a name="l2"><span class="ln">2    </span></a>A provided CSRF implementation which puts CSRF data in a session. 
+<a name="l3"><span class="ln">3    </span></a> 
+<a name="l4"><span class="ln">4    </span></a>This can be used fairly comfortably with many `request.session` type 
+<a name="l5"><span class="ln">5    </span></a>objects, including the Werkzeug/Flask session store, Django sessions, and 
+<a name="l6"><span class="ln">6    </span></a>potentially other similar objects which use a dict-like API for storing 
+<a name="l7"><span class="ln">7    </span></a>session keys. 
+<a name="l8"><span class="ln">8    </span></a> 
+<a name="l9"><span class="ln">9    </span></a>The basic concept is a randomly generated value is stored in the user's 
+<a name="l10"><span class="ln">10   </span></a>session, and an hmac-sha1 of it (along with an optional expiration time, 
+<a name="l11"><span class="ln">11   </span></a>for extra security) is used as the value of the csrf_token. If this token 
+<a name="l12"><span class="ln">12   </span></a>validates with the hmac of the random value + expiration time, and the 
+<a name="l13"><span class="ln">13   </span></a>expiration time is not passed, the CSRF validation will pass. 
+<a name="l14"><span class="ln">14   </span></a>&quot;&quot;&quot;</span>
+<a name="l15"><span class="ln">15   </span></a><span class="s2">import </span><span class="s1">hmac</span>
+<a name="l16"><span class="ln">16   </span></a><span class="s2">import </span><span class="s1">os</span>
+<a name="l17"><span class="ln">17   </span></a><span class="s2">from </span><span class="s1">datetime </span><span class="s2">import </span><span class="s1">datetime</span>
+<a name="l18"><span class="ln">18   </span></a><span class="s2">from </span><span class="s1">datetime </span><span class="s2">import </span><span class="s1">timedelta</span>
+<a name="l19"><span class="ln">19   </span></a><span class="s2">from </span><span class="s1">hashlib </span><span class="s2">import </span><span class="s1">sha1</span>
+<a name="l20"><span class="ln">20   </span></a>
+<a name="l21"><span class="ln">21   </span></a><span class="s2">from </span><span class="s1">..validators </span><span class="s2">import </span><span class="s1">ValidationError</span>
+<a name="l22"><span class="ln">22   </span></a><span class="s2">from </span><span class="s1">.core </span><span class="s2">import </span><span class="s1">CSRF</span>
+<a name="l23"><span class="ln">23   </span></a>
+<a name="l24"><span class="ln">24   </span></a><span class="s1">__all__ = (</span><span class="s3">&quot;SessionCSRF&quot;</span><span class="s2">,</span><span class="s1">)</span>
+<a name="l25"><span class="ln">25   </span></a>
+<a name="l26"><span class="ln">26   </span></a>
+<a name="l27"><span class="ln">27   </span></a><span class="s2">class </span><span class="s1">SessionCSRF(CSRF):</span>
+<a name="l28"><span class="ln">28   </span></a>    <span class="s1">TIME_FORMAT = </span><span class="s3">&quot;%Y%m%d%H%M%S&quot;</span>
+<a name="l29"><span class="ln">29   </span></a>
+<a name="l30"><span class="ln">30   </span></a>    <span class="s2">def </span><span class="s1">setup_form(self</span><span class="s2">, </span><span class="s1">form):</span>
+<a name="l31"><span class="ln">31   </span></a>        <span class="s1">self.form_meta = form.meta</span>
+<a name="l32"><span class="ln">32   </span></a>        <span class="s2">return </span><span class="s1">super().setup_form(form)</span>
+<a name="l33"><span class="ln">33   </span></a>
+<a name="l34"><span class="ln">34   </span></a>    <span class="s2">def </span><span class="s1">generate_csrf_token(self</span><span class="s2">, </span><span class="s1">csrf_token_field):</span>
+<a name="l35"><span class="ln">35   </span></a>        <span class="s1">meta = self.form_meta</span>
+<a name="l36"><span class="ln">36   </span></a>        <span class="s2">if </span><span class="s1">meta.csrf_secret </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l37"><span class="ln">37   </span></a>            <span class="s2">raise </span><span class="s1">Exception(</span>
+<a name="l38"><span class="ln">38   </span></a>                <span class="s3">&quot;must set `csrf_secret` on class Meta for SessionCSRF to work&quot;</span>
+<a name="l39"><span class="ln">39   </span></a>            <span class="s1">)</span>
+<a name="l40"><span class="ln">40   </span></a>        <span class="s2">if </span><span class="s1">meta.csrf_context </span><span class="s2">is None</span><span class="s1">:</span>
+<a name="l41"><span class="ln">41   </span></a>            <span class="s2">raise </span><span class="s1">TypeError(</span><span class="s3">&quot;Must provide a session-like object as csrf context&quot;</span><span class="s1">)</span>
+<a name="l42"><span class="ln">42   </span></a>
+<a name="l43"><span class="ln">43   </span></a>        <span class="s1">session = self.session</span>
+<a name="l44"><span class="ln">44   </span></a>
+<a name="l45"><span class="ln">45   </span></a>        <span class="s2">if </span><span class="s3">&quot;csrf&quot; </span><span class="s2">not in </span><span class="s1">session:</span>
+<a name="l46"><span class="ln">46   </span></a>            <span class="s1">session[</span><span class="s3">&quot;csrf&quot;</span><span class="s1">] = sha1(os.urandom(</span><span class="s4">64</span><span class="s1">)).hexdigest()</span>
+<a name="l47"><span class="ln">47   </span></a>
+<a name="l48"><span class="ln">48   </span></a>        <span class="s2">if </span><span class="s1">self.time_limit:</span>
+<a name="l49"><span class="ln">49   </span></a>            <span class="s1">expires = (self.now() + self.time_limit).strftime(self.TIME_FORMAT)</span>
+<a name="l50"><span class="ln">50   </span></a>            <span class="s1">csrf_build = </span><span class="s3">&quot;{}{}&quot;</span><span class="s1">.format(session[</span><span class="s3">&quot;csrf&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">expires)</span>
+<a name="l51"><span class="ln">51   </span></a>        <span class="s2">else</span><span class="s1">:</span>
+<a name="l52"><span class="ln">52   </span></a>            <span class="s1">expires = </span><span class="s3">&quot;&quot;</span>
+<a name="l53"><span class="ln">53   </span></a>            <span class="s1">csrf_build = session[</span><span class="s3">&quot;csrf&quot;</span><span class="s1">]</span>
+<a name="l54"><span class="ln">54   </span></a>
+<a name="l55"><span class="ln">55   </span></a>        <span class="s1">hmac_csrf = hmac.new(</span>
+<a name="l56"><span class="ln">56   </span></a>            <span class="s1">meta.csrf_secret</span><span class="s2">, </span><span class="s1">csrf_build.encode(</span><span class="s3">&quot;utf8&quot;</span><span class="s1">)</span><span class="s2">, </span><span class="s1">digestmod=sha1</span>
+<a name="l57"><span class="ln">57   </span></a>        <span class="s1">)</span>
+<a name="l58"><span class="ln">58   </span></a>        <span class="s2">return </span><span class="s3">f&quot;</span><span class="s2">{</span><span class="s1">expires</span><span class="s2">}</span><span class="s3">##</span><span class="s2">{</span><span class="s1">hmac_csrf.hexdigest()</span><span class="s2">}</span><span class="s3">&quot;</span>
+<a name="l59"><span class="ln">59   </span></a>
+<a name="l60"><span class="ln">60   </span></a>    <span class="s2">def </span><span class="s1">validate_csrf_token(self</span><span class="s2">, </span><span class="s1">form</span><span class="s2">, </span><span class="s1">field):</span>
+<a name="l61"><span class="ln">61   </span></a>        <span class="s1">meta = self.form_meta</span>
+<a name="l62"><span class="ln">62   </span></a>        <span class="s2">if not </span><span class="s1">field.data </span><span class="s2">or </span><span class="s3">&quot;##&quot; </span><span class="s2">not in </span><span class="s1">field.data:</span>
+<a name="l63"><span class="ln">63   </span></a>            <span class="s2">raise </span><span class="s1">ValidationError(field.gettext(</span><span class="s3">&quot;CSRF token missing.&quot;</span><span class="s1">))</span>
+<a name="l64"><span class="ln">64   </span></a>
+<a name="l65"><span class="ln">65   </span></a>        <span class="s1">expires</span><span class="s2">, </span><span class="s1">hmac_csrf = field.data.split(</span><span class="s3">&quot;##&quot;</span><span class="s2">, </span><span class="s4">1</span><span class="s1">)</span>
+<a name="l66"><span class="ln">66   </span></a>
+<a name="l67"><span class="ln">67   </span></a>        <span class="s1">check_val = (self.session[</span><span class="s3">&quot;csrf&quot;</span><span class="s1">] + expires).encode(</span><span class="s3">&quot;utf8&quot;</span><span class="s1">)</span>
+<a name="l68"><span class="ln">68   </span></a>
+<a name="l69"><span class="ln">69   </span></a>        <span class="s1">hmac_compare = hmac.new(meta.csrf_secret</span><span class="s2">, </span><span class="s1">check_val</span><span class="s2">, </span><span class="s1">digestmod=sha1)</span>
+<a name="l70"><span class="ln">70   </span></a>        <span class="s2">if </span><span class="s1">hmac_compare.hexdigest() != hmac_csrf:</span>
+<a name="l71"><span class="ln">71   </span></a>            <span class="s2">raise </span><span class="s1">ValidationError(field.gettext(</span><span class="s3">&quot;CSRF failed.&quot;</span><span class="s1">))</span>
+<a name="l72"><span class="ln">72   </span></a>
+<a name="l73"><span class="ln">73   </span></a>        <span class="s2">if </span><span class="s1">self.time_limit:</span>
+<a name="l74"><span class="ln">74   </span></a>            <span class="s1">now_formatted = self.now().strftime(self.TIME_FORMAT)</span>
+<a name="l75"><span class="ln">75   </span></a>            <span class="s2">if </span><span class="s1">now_formatted &gt; expires:</span>
+<a name="l76"><span class="ln">76   </span></a>                <span class="s2">raise </span><span class="s1">ValidationError(field.gettext(</span><span class="s3">&quot;CSRF token expired.&quot;</span><span class="s1">))</span>
+<a name="l77"><span class="ln">77   </span></a>
+<a name="l78"><span class="ln">78   </span></a>    <span class="s2">def </span><span class="s1">now(self):</span>
+<a name="l79"><span class="ln">79   </span></a>        <span class="s0">&quot;&quot;&quot; 
+<a name="l80"><span class="ln">80   </span></a>        Get the current time. Used for test mocking/overriding mainly. 
+<a name="l81"><span class="ln">81   </span></a>        &quot;&quot;&quot;</span>
+<a name="l82"><span class="ln">82   </span></a>        <span class="s2">return </span><span class="s1">datetime.now()</span>
+<a name="l83"><span class="ln">83   </span></a>
+<a name="l84"><span class="ln">84   </span></a>    <span class="s1">@property</span>
+<a name="l85"><span class="ln">85   </span></a>    <span class="s2">def </span><span class="s1">time_limit(self):</span>
+<a name="l86"><span class="ln">86   </span></a>        <span class="s2">return </span><span class="s1">getattr(self.form_meta</span><span class="s2">, </span><span class="s3">&quot;csrf_time_limit&quot;</span><span class="s2">, </span><span class="s1">timedelta(minutes=</span><span class="s4">30</span><span class="s1">))</span>
+<a name="l87"><span class="ln">87   </span></a>
+<a name="l88"><span class="ln">88   </span></a>    <span class="s1">@property</span>
+<a name="l89"><span class="ln">89   </span></a>    <span class="s2">def </span><span class="s1">session(self):</span>
+<a name="l90"><span class="ln">90   </span></a>        <span class="s2">return </span><span class="s1">getattr(</span>
+<a name="l91"><span class="ln">91   </span></a>            <span class="s1">self.form_meta.csrf_context</span><span class="s2">, </span><span class="s3">&quot;session&quot;</span><span class="s2">, </span><span class="s1">self.form_meta.csrf_context</span>
+<a name="l92"><span class="ln">92   </span></a>        <span class="s1">)</span>
+<a name="l93"><span class="ln">93   </span></a></pre>
+</body>
+</html>
