@@ -3,24 +3,31 @@
 
 {% block content %}
 {% from "includes/_formHelper.html" import render_field %}
-<h1 class="display-4">Shopping Cart</h1>
+<h1 class="display-4">Store</h1>
 <p>Welcome!</p>
-<div class="container">
+<div class="container big-chungus">
   <div class="row">
+    {% for card in data %}
     <div class="col-sm">
-      <form method="POST" action="">
-        <div class="center">
-          <div class="form-group">
-            <p>pack1</p>
-            <p>description goes here</p>
-            Count: {{ render_field(form.pack_count, class="form-control") }}
-            Price: $100
+      <form class="listing-grid" method="POST" action="">
+        <div class="row">
+          <div class="col-sm">
+            <div class="center">
+                <p><strong>{{ card.name }}</strong></p>
+                <p>{{ card.description }}</p>
+                <p>Type: {{ card.type }}</p>
+                <p>Rarity: {{ card.rarity }}</p>
+                <p>Booster: {{ card.booster }}</p>
+                <p>Price: ${{ card.price }}</p>
+                <a href="success.html"></a><button type="submit" value="Add" class="btn btn-primary">View</button></a>
+            </div>
           </div>
-          <div class="form-group">
-            <input type="submit" value="Add" class="btn btn-primary"/>
+          <div class="col-sm">
+            <img src="{{url_for('image', id=card.id)}}" alt="IMAGE BROKEN!!1!!1!!1" height=200px width = 200px>
           </div>
         </div>
       </form>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}
